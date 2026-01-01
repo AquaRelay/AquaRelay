@@ -1,0 +1,10 @@
+# AquaRelay configuration
+bind:
+  address: 0.0.0.0
+  port: 19132
+
+backend:
+  address: 127.0.0.1
+  port: 19133
+
+session-timeout: 10

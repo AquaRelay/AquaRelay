@@ -1,0 +1,25 @@
+{
+  "name": "aquarelay/aquarelay",
+  "description": "Proxy tool for Minecraft: Bedrock Edition written with PHP",
+  "type": "project",
+  "license": "LGPL-3.0",
+  "require": {
+    "php": ">=8.1",
+    "pocketmine/raklib": "~1.2.0",
+    "pocketmine/color": "^0.3.0",
+    "pocketmine/log": "^0.4.0",
+    "pocketmine/bedrock-block-upgrade-schema": "~5.2.0+bedrock-1.21.110",
+    "pocketmine/bedrock-data": "~6.3.0+bedrock-1.21.130",
+    "pocketmine/bedrock-item-upgrade-schema": "~1.16.0+bedrock-1.21.110",
+    "pocketmine/bedrock-protocol": "~54.0.0+bedrock-1.21.130",
+    "ext-pmmpthread": "^6.1.0",
+    "symfony/yaml": "^7.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "aquarelay\\": "src/"
+    }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}

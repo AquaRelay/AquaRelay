@@ -1,0 +1,13 @@
+.idea/*
+!.idea/codeStyles/
+!.idea/fileTemplates/
+nbproject/*
+
+Thumbs.db
+
+Desktop.ini
+
+.DS_Store
+/nbproject/private/
+
+vendor/*
