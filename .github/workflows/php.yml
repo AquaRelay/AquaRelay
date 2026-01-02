@@ -24,11 +24,5 @@ jobs:
       - name: Validate composer.json
         run: composer validate --strict
 
-      - name: Install dependencies ignoring ext-encoding
-        run: composer install --no-interaction --prefer-dist --ignore-platform-req=ext-encoding
-
       - name: PHP Syntax Check
-        run: |
-          for file in $(find . -name "*.php"); do
-            php -l "$file"
-          done
+        run: find . -name "*.php" -exec php -l {} \;

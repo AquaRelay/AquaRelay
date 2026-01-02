@@ -30,7 +30,7 @@ class ClientSession {
 
     private int $lastUsed;
 
-    public function __construct(private InternetAddress $address, private ClientSocket $socket){
+    public function __construct(private readonly InternetAddress $address, private readonly ClientSocket $socket){
         $this->lastUsed = time();
     }
 
