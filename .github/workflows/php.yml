@@ -21,11 +21,21 @@ jobs:
           extensions: mbstring, json
           coverage: none
 
+      - name: Install encoding PECL extension
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y php8.1-dev php-pear
+          yes | sudo pecl install encoding
+          echo "extension=encoding.so" | sudo tee /etc/php/8.1/cli/conf.d/20-encoding.ini
+
       - name: Validate composer.json
         run: composer validate --strict
 
       - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist --no-progress
+        run: composer install --no-interaction --prefer-dist
 
       - name: PHP Syntax Check
-        run: find . -name "*.php" -exec php -l {} \;
+        run: |
+          for file in $(find . -name "*.php"); do
+            php -l "$file"
+          done
