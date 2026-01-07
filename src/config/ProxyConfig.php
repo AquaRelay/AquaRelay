@@ -32,7 +32,8 @@ final class ProxyConfig {
         public readonly int $bindPort,
         public readonly string $backendAddress,
         public readonly int $backendPort,
-        public readonly int $sessionTimeout
+        public readonly int $sessionTimeout,
+		public readonly bool $debugMode
     ){}
 
     public static function load(string $file) : self{
@@ -43,7 +44,8 @@ final class ProxyConfig {
             (int) $data["bind"]["port"],
             $data["backend"]["address"],
             (int) $data["backend"]["port"],
-            (int) $data["session-timeout"]
+            (int) $data["session-timeout"],
+			(bool) $data["debug-mode"]
         );
     }
 }

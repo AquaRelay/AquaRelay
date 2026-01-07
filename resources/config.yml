@@ -8,3 +8,4 @@ backend:
   port: 19133
 
 session-timeout: 10
+debug-mode: false

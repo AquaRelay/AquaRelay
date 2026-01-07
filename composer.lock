@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c6b9c53c26b9b401c16b08e3c722fccf",
+    "content-hash": "cc7a27cb916ea39dec7be4bfc30d8b71",
     "packages": [
         {
             "name": "brick/math",
@@ -440,6 +440,47 @@
             "time": "2025-12-24T03:02:42+00:00"
         },
         {
+            "name": "pocketmine/raklib-ipc",
+            "version": "1.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/pmmp/RakLibIpc.git",
+                "reference": "ce632ef2c6743e71eddb5dc329c49af6555f90bc"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/pmmp/RakLibIpc/zipball/ce632ef2c6743e71eddb5dc329c49af6555f90bc",
+                "reference": "ce632ef2c6743e71eddb5dc329c49af6555f90bc",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.0",
+                "php-64bit": "*",
+                "pocketmine/binaryutils": "^0.2.0",
+                "pocketmine/raklib": "^0.15.0 || ^1.0.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "1.10.1",
+                "phpstan/phpstan-strict-rules": "^1.0.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "raklib\\server\\ipc\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPL-3.0"
+            ],
+            "description": "Channel-based protocols for inter-thread/inter-process communication with RakLib",
+            "support": {
+                "issues": "https://github.com/pmmp/RakLibIpc/issues",
+                "source": "https://github.com/pmmp/RakLibIpc/tree/1.0.1"
+            },
+            "time": "2024-03-01T15:55:05+00:00"
+        },
+        {
             "name": "ramsey/collection",
             "version": "2.1.1",
             "source": {
@@ -827,7 +868,8 @@
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
-        "php": ">=8.1"
+        "php": ">=8.1",
+        "ext-pmmpthread": "^6.1.0"
     },
     "platform-dev": {},
     "plugin-api-version": "2.6.0"
