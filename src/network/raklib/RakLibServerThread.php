@@ -42,14 +42,14 @@ class RakLibServerThread extends Thread {
 	private bool $running = false;
 	private ThreadSafeArray $mainToThread;
 	private ThreadSafeArray $threadToMain;
-	private int $serverId;
 
 	public function __construct(
 		private MainLogger $logger,
 		private string $address,
 		private int $port,
 		private int $maxMtu,
-		private int $protocolVersion
+		private int $protocolVersion,
+		private int $rakServerId
 	){
 		$this->mainToThread = new ThreadSafeArray();
 		$this->threadToMain = new ThreadSafeArray();
@@ -72,15 +72,13 @@ class RakLibServerThread extends Thread {
 		require dirname(__DIR__, 3) . '/vendor/autoload.php';
 
 		try {
-			$socket = new ServerSocket(new InternetAddress($this->address, $this->port, 4));
+			$socket = new ServerSocket(new InternetAddress($this->address, $this->port, 4)); // IPV6 = 6 so we aren't using it for now
 		} catch (SocketException $e) {
 			$this->logger->error("Socket bind failed: " . $e->getMessage());
 			return;
 		}
 
 		\GlobalLogger::set($this->logger);
-
-		$this->serverId = mt_rand(0, 1000000);
 
 		$server = new Server(
 			mt_rand(0, 1000000),
@@ -90,10 +88,8 @@ class RakLibServerThread extends Thread {
 			new SimpleProtocolAcceptor($this->protocolVersion),
 			new UserToRakLibThreadMessageReceiver(new PthreadsChannelReader($this->mainToThread)),
 			new RakLibToUserThreadMessageSender(new PthreadsChannelWriter($this->threadToMain)),
-			new ExceptionTraceCleaner(dirname(__DIR__))
+			new ExceptionTraceCleaner(dirname(__DIR__)) // TODO: Move this to a variable
 		);
-
-		$server->setName("MCPE;§bAquaRelay§r Proxy;898;1.21.130;0;100;" . $this->serverId . ";Proxy;Survival;1;19132;");
 
 		while ($this->running) {
 			$server->tickProcessor();

@@ -72,7 +72,7 @@ class ProxyLoop {
 				continue;
 			}
 
-			if($session->expired($this->config->sessionTimeout)){
+			if($session->expired($this->config->getGameSettings()->getSessionTimeout())){
 				$this->server->getLogger()->info("Session timed out: $sessionId");
 				$this->server->interface->closeSession($sessionId);
 				unset($this->sessions[$sessionId]);
@@ -80,14 +80,14 @@ class ProxyLoop {
 		}
 	}
 
-	private function handleConnect(int $sessionId, string $ip, int $port, int $clientId): void {
+	private function handleConnect(int $sessionId, string $ip, int $port): void {
 		$this->server->getLogger()->info("Client connected: $ip:$port (ID: $sessionId)");
 
 		try {
-			$backendSocket = new ClientSocket(
-				new InternetAddress($this->config->backendAddress, $this->config->backendPort, 4)
-			);
+			$address = $this->config->getNetworkSettings()->getBackendAddress();
+			$port = $this->config->getNetworkSettings()->getBackendPort();
 
+			$backendSocket = new ClientSocket(new InternetAddress($address, $port, 4));
 			$backendSocket->setBlocking(false);
 
 			$this->sessions[$sessionId] = new ClientSession(
@@ -102,12 +102,13 @@ class ProxyLoop {
 
 	private function handlePacket(int $sessionId, string $buffer): void {
 		if(isset($this->sessions[$sessionId])){
+			$this->sessions[$sessionId]->touch();
+
 			try {
 				// Client (RakLib) -> Proxy -> Backend
-				$this->sessions[$sessionId]->touch();
-				$this->sessions[$sessionId]->socket()->writePacket($buffer);
-			} catch (SocketException $e) {
-				$this->server->getLogger()->warn("Failed to forward packet to backend: " . $e->getMessage());
+				$socket = $this->sessions[$sessionId]->socket();
+				$socket->writePacket($buffer);
+			} catch (SocketException) {
 				$this->closeSessionInternal($sessionId);
 			}
 		}

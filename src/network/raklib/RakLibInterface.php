@@ -25,8 +25,10 @@ namespace aquarelay\network\raklib;
 
 use aquarelay\network\raklib\ipc\PthreadsChannelReader;
 use aquarelay\network\raklib\ipc\PthreadsChannelWriter;
+use aquarelay\ProxyServer;
 use aquarelay\utils\MainLogger;
 use pmmp\thread\Thread as NativeThread;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use raklib\protocol\EncapsulatedPacket;
 use raklib\protocol\PacketReliability;
 use raklib\server\ipc\RakLibToUserThreadMessageReceiver;
@@ -45,6 +47,8 @@ class RakLibInterface implements ServerEventListener {
 	private $onPacket;
 	/** @var callable(int, string): void */
 	private $onDisconnect;
+	/** @var int */
+	private int $rakServerId;
 
 	public function getRaklibInterface() : UserToRakLibThreadMessageSender
 	{
@@ -52,7 +56,8 @@ class RakLibInterface implements ServerEventListener {
 	}
 
 	public function __construct(MainLogger $logger, string $address, int $port) {
-		$this->thread = new RakLibServerThread($logger, $address, $port, 1492, 11);
+		$this->rakServerId = mt_rand(0, 1000000);
+		$this->thread = new RakLibServerThread($logger, $address, $port, 1400, 11, $this->rakServerId);
 
 		$this->eventReceiver = new RakLibToUserThreadMessageReceiver(
 			new PthreadsChannelReader($this->thread->getReadBuffer())
@@ -99,16 +104,29 @@ class RakLibInterface implements ServerEventListener {
 	}
 
 	public function onPacketReceive(int $sessionId, string $packet): void {
-		// RakLib FE header (GamePacket ID) usually handles itself, but we can check the data
-		$payload = $packet;
-		if($packet !== "" && $packet[0] === "\xfe"){
-			$payload = substr($packet, 1);
-		}
-		($this->onPacket)($sessionId, $payload);
+		($this->onPacket)($sessionId, $packet);
 	}
 
 	public function onClientDisconnect(int $sessionId, int $reason): void {
 		($this->onDisconnect)($sessionId, "Reason: $reason");
+	}
+
+	public function setName(string $name, string $subMotd) : void
+	{
+		$config = ProxyServer::getInstance()->getConfig();
+		$this->interface->setName(implode(";",
+				[
+					"MCPE",
+					rtrim(addcslashes($name, ";"), '\\'),
+					ProtocolInfo::CURRENT_PROTOCOL,
+					ProtocolInfo::MINECRAFT_VERSION_NETWORK,
+					0, // TODO
+					$config->getGameSettings()->getMaxPlayers(),
+					$this->rakServerId,
+					$subMotd,
+					"Survival" // This shouldn't matter since we're a proxy
+				]) . ";"
+		);
 	}
 
 	public function onPacketAck(int $sessionId, int $identifierACK): void {}

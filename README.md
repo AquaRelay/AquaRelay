@@ -2,7 +2,7 @@
 	<a href="https://aquarelay.dev">
        <img src=".github/readme/banner.png" alt="The AquaRelay logo" title="AquaRelay" loading="eager" />
 	</a><br>
-	<b>Blazingly fast, lightweight, and easy to use Minecraft: Bedrock Edition proxy written in PHP</b>
+	<b>Blazingly fast, lightweight, and easy to use Minecraft: Bedrock Edition proxy server written in PHP</b>
 </p>
 
 <p align="center">

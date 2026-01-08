@@ -27,25 +27,37 @@ use Symfony\Component\Yaml\Yaml;
 
 final class ProxyConfig {
 
-    public function __construct(
-        public readonly string $bindAddress,
-        public readonly int $bindPort,
-        public readonly string $backendAddress,
-        public readonly int $backendPort,
-        public readonly int $sessionTimeout,
-		public readonly bool $debugMode
-    ){}
+	public function __construct(
+		private readonly NetworkSettings $networkSettings,
+		private readonly GameSettings $gameSettings
+	){}
 
-    public static function load(string $file) : self{
-        $data = Yaml::parseFile($file);
+	public static function load(string $file) : self{
+		$data = Yaml::parseFile($file);
 
-        return new self(
-            $data["bind"]["address"],
-            (int) $data["bind"]["port"],
-            $data["backend"]["address"],
-            (int) $data["backend"]["port"],
-            (int) $data["session-timeout"],
-			(bool) $data["debug-mode"]
-        );
-    }
+		$network = new NetworkSettings(
+			$data["network"]["bind"]["address"],
+			(int) $data["network"]["bind"]["port"],
+			$data["network"]["backend"]["address"],
+			(int) $data["network"]["backend"]["port"]
+		);
+
+		$game = new GameSettings(
+			(int) $data["game-settings"]["session-timeout"],
+			(bool) $data["game-settings"]["debug-mode"],
+			(int) $data["game-settings"]["max-players"],
+			$data["game-settings"]["motd"],
+			$data["game-settings"]["sub-motd"]
+		);
+
+		return new self($network, $game);
+	}
+
+	public function getNetworkSettings() : NetworkSettings {
+		return $this->networkSettings;
+	}
+
+	public function getGameSettings() : GameSettings {
+		return $this->gameSettings;
+	}
 }
