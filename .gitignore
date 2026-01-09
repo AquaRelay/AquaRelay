@@ -14,5 +14,5 @@ vendor/*
 
 # AquaRelay files
 config.yml
-proxy.log
+*.log
 AquaRelay.phar
