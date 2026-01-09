@@ -44,6 +44,7 @@ class RakLibServerThread extends Thread {
 	private ThreadSafeArray $threadToMain;
 
 	public function __construct(
+		private string $mainPath,
 		private MainLogger $logger,
 		private string $address,
 		private int $port,
@@ -68,6 +69,7 @@ class RakLibServerThread extends Thread {
 	}
 
 	public function run(): void {
+		gc_disable();
 		$this->running = true;
 		require dirname(__DIR__, 3) . '/vendor/autoload.php';
 
@@ -79,7 +81,6 @@ class RakLibServerThread extends Thread {
 		}
 
 		\GlobalLogger::set($this->logger);
-
 		$server = new Server(
 			mt_rand(0, 1000000),
 			$this->logger,
@@ -88,7 +89,8 @@ class RakLibServerThread extends Thread {
 			new SimpleProtocolAcceptor($this->protocolVersion),
 			new UserToRakLibThreadMessageReceiver(new PthreadsChannelReader($this->mainToThread)),
 			new RakLibToUserThreadMessageSender(new PthreadsChannelWriter($this->threadToMain)),
-			new ExceptionTraceCleaner(dirname(__DIR__)) // TODO: Move this to a variable
+			new ExceptionTraceCleaner($this->mainPath),
+			recvMaxSplitParts: 512// TODO: Move this to a variable
 		);
 
 		while ($this->running) {
@@ -98,4 +100,5 @@ class RakLibServerThread extends Thread {
 
 		$server->waitShutdown();
 	}
+
 }

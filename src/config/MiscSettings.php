@@ -23,35 +23,27 @@ declare(strict_types=1);
 
 namespace aquarelay\config;
 
-final class GameSettings {
+final class MiscSettings {
 
 	public function __construct(
-		private int $maxPlayers,
-		private string $motd,
-		private string $subMotd
+		private bool $debugMode,
+		private string $logName
 	){}
 
-	public function getMaxPlayers() : int{
-		return $this->maxPlayers;
+	public function isDebugMode() : bool{
+		return $this->debugMode;
 	}
 
-	public function setMaxPlayers(int $maxPlayers) : void{
-		$this->maxPlayers = $maxPlayers;
+	public function setDebugMode(bool $debugMode) : void{
+		$this->debugMode = $debugMode;
 	}
 
-	public function getMotd() : string{
-		return $this->motd;
+	public function getLogName() : string {
+		return $this->logName;
 	}
 
-	public function setMotd(string $motd) : void{
-		$this->motd = $motd;
-	}
-
-	public function getSubMotd() : string{
-		return $this->subMotd;
-	}
-
-	public function setSubMotd(string $subMotd) : void{
-		$this->subMotd = $subMotd;
+	public function setLogName(string $logName) : void
+	{
+		$this->logName = $logName;
 	}
 }

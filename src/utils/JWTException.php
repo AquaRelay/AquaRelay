@@ -21,37 +21,9 @@
 
 declare(strict_types=1);
 
-namespace aquarelay\config;
+namespace aquarelay\utils;
 
-final class GameSettings {
+final class JWTException extends \RuntimeException
+{
 
-	public function __construct(
-		private int $maxPlayers,
-		private string $motd,
-		private string $subMotd
-	){}
-
-	public function getMaxPlayers() : int{
-		return $this->maxPlayers;
-	}
-
-	public function setMaxPlayers(int $maxPlayers) : void{
-		$this->maxPlayers = $maxPlayers;
-	}
-
-	public function getMotd() : string{
-		return $this->motd;
-	}
-
-	public function setMotd(string $motd) : void{
-		$this->motd = $motd;
-	}
-
-	public function getSubMotd() : string{
-		return $this->subMotd;
-	}
-
-	public function setSubMotd(string $subMotd) : void{
-		$this->subMotd = $subMotd;
-	}
 }

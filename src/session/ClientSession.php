@@ -30,15 +30,23 @@ class ClientSession {
 
     private int $lastUsed;
 
-    public function __construct(private readonly InternetAddress $address, private readonly ClientSocket $socket){
+    public function __construct(private readonly InternetAddress $address, private readonly ClientSocket $socket, private ?string $username = null){
         $this->lastUsed = time();
     }
 
-    public function address() : InternetAddress{
+	public function setUsername(string $username): void{
+		$this->username = $username;
+	}
+
+	public function getUsername(): ?string{
+		return $this->username;
+	}
+
+    public function getAddress() : InternetAddress{
         return $this->address;
     }
 
-    public function socket() : ClientSocket{
+    public function getSocket() : ClientSocket{
         return $this->socket;
     }
 

@@ -21,37 +21,27 @@
 
 declare(strict_types=1);
 
-namespace aquarelay\config;
+namespace aquarelay\utils;
 
-final class GameSettings {
+/**
+ * @author PocketMine-MP Team
+ */
+trait InstanceTrait {
 
-	public function __construct(
-		private int $maxPlayers,
-		private string $motd,
-		private string $subMotd
-	){}
+	private static ?self $instance = null;
 
-	public function getMaxPlayers() : int{
-		return $this->maxPlayers;
+	public static function getInstance() : self{
+		if(is_null(self::$instance)){
+			self::$instance = new self();
+		}
+		return self::$instance;
 	}
 
-	public function setMaxPlayers(int $maxPlayers) : void{
-		$this->maxPlayers = $maxPlayers;
+	public static function setInstance(self $instance) : void{
+		self::$instance = $instance;
 	}
 
-	public function getMotd() : string{
-		return $this->motd;
-	}
-
-	public function setMotd(string $motd) : void{
-		$this->motd = $motd;
-	}
-
-	public function getSubMotd() : string{
-		return $this->subMotd;
-	}
-
-	public function setSubMotd(string $subMotd) : void{
-		$this->subMotd = $subMotd;
+	public static function reset() : void{
+		self::$instance = null;
 	}
 }

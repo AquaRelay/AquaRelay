@@ -29,32 +29,44 @@ final class ProxyConfig {
 
 	public function __construct(
 		private readonly NetworkSettings $networkSettings,
+		private readonly MiscSettings $miscSettings,
 		private readonly GameSettings $gameSettings
 	){}
 
 	public static function load(string $file) : self{
 		$data = Yaml::parseFile($file);
+		
+		$networkSettings = $data["network-settings"];
+		$miscSettings = $data["misc-settings"];
+		$gameSettings = $data["game-settings"];
 
-		$network = new NetworkSettings(
-			$data["network"]["bind"]["address"],
-			(int) $data["network"]["bind"]["port"],
-			$data["network"]["backend"]["address"],
-			(int) $data["network"]["backend"]["port"]
+		return new self(
+			new NetworkSettings(
+				$networkSettings["bind"]["address"],
+				(int) $networkSettings["bind"]["port"],
+				$networkSettings["backend"]["address"],
+				(int) $networkSettings["backend"]["port"],
+				(int) $networkSettings["session-timeout"],
+				(int) $networkSettings["max-mtu"]
+			),
+			new MiscSettings(
+				(bool) $miscSettings["debug-mode"],
+				$miscSettings["log-name"]
+			),
+			new GameSettings(
+				(int) $gameSettings["max-players"],
+				$gameSettings["motd"],
+				$gameSettings["sub-motd"]
+			),
 		);
-
-		$game = new GameSettings(
-			(int) $data["game-settings"]["session-timeout"],
-			(bool) $data["game-settings"]["debug-mode"],
-			(int) $data["game-settings"]["max-players"],
-			$data["game-settings"]["motd"],
-			$data["game-settings"]["sub-motd"]
-		);
-
-		return new self($network, $game);
 	}
 
 	public function getNetworkSettings() : NetworkSettings {
 		return $this->networkSettings;
+	}
+
+	public function getMiscSettings() : MiscSettings {
+		return $this->miscSettings;
 	}
 
 	public function getGameSettings() : GameSettings {

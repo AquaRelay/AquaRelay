@@ -23,14 +23,10 @@ declare(strict_types=1);
 
 namespace aquarelay;
 
-use aquarelay\config\ProxyConfig;
 use aquarelay\utils\Colors;
-use \RuntimeException;
 use Throwable;
 use function extension_loaded;
 use function version_compare;
-use function file_exists;
-use function copy;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -71,22 +67,6 @@ function setEntries() : void
 	ini_set("allow_url_fopen", "1");
 }
 
-function checkConfig(): void
-{
-	if (!file_exists(CONFIG_FILE)) {
-
-		$source = RESOURCE_PATH . "/config.yml";
-
-		if (!file_exists($source)) {
-			throw new RuntimeException("Default configuration file missing in resources folder");
-		}
-
-		if (!copy($source, CONFIG_FILE)) {
-			throw new RuntimeException("Failed to create config.yml. Please check permissions.");
-		}
-	}
-}
-
 function start() : void
 {
 	checkDependencies();
@@ -96,14 +76,12 @@ function start() : void
 
 	define("BASE_PATH", dirname(__DIR__));
 	define("RESOURCE_PATH", BASE_PATH . "/resources");
-	define("CONFIG_FILE", BASE_PATH . "/config.yml");
-
-	checkConfig();
 
 	try {
-		$config = ProxyConfig::load(CONFIG_FILE);
-
-		new ProxyServer($config);
+		new ProxyServer(
+			BASE_PATH,
+			RESOURCE_PATH
+		);
 	} catch(Throwable $e) {
 		error($e->getMessage());
 		exit(1);

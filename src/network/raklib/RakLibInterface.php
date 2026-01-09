@@ -55,9 +55,9 @@ class RakLibInterface implements ServerEventListener {
 		return $this->interface;
 	}
 
-	public function __construct(MainLogger $logger, string $address, int $port) {
+	public function __construct(string $mainPath, MainLogger $logger, string $address, int $port, int $maxMtu) {
 		$this->rakServerId = mt_rand(0, 1000000);
-		$this->thread = new RakLibServerThread($logger, $address, $port, 1400, 11, $this->rakServerId);
+		$this->thread = new RakLibServerThread($mainPath, $logger, $address, $port, $maxMtu, 11, $this->rakServerId);
 
 		$this->eventReceiver = new RakLibToUserThreadMessageReceiver(
 			new PthreadsChannelReader($this->thread->getReadBuffer())

@@ -49,7 +49,6 @@ class MainLogger extends ThreadSafe implements \Logger
 	}
 
 	public function info($message): void { $this->send("INFO", Colors::GREEN, (string) $message); }
-	public function warn($message): void { $this->send("WARN", Colors::YELLOW, (string) $message); }
 	public function warning($message): void { $this->send("WARN", Colors::YELLOW, (string) $message); }
 	public function error($message): void { $this->send("ERROR", Colors::RED, (string) $message); }
 	public function debug($message): void {
@@ -62,7 +61,29 @@ class MainLogger extends ThreadSafe implements \Logger
 	public function notice($message): void { $this->send("NOTICE", Colors::BLUE, (string) $message); }
 
 	public function log($level, $message): void {
-		$this->info("[" . strtoupper((string)$level) . "] " . $message);
+		$level = strtolower((string)$level);
+
+		switch ($level) {
+			case "debug":
+				$this->debug($message);
+				break;
+			case "warning":
+			case "warn":
+				$this->warning($message);
+				break;
+			case "error":
+			case "critical":
+			case "alert":
+			case "emergency":
+				$this->error($message);
+				break;
+			case "info":
+				$this->info($message);
+				break;
+			default:
+				$this->info("[" . strtoupper($level) . "] " . $message);
+				break;
+		}
 	}
 
 	public function logException(\Throwable $e, $trace = null): void {

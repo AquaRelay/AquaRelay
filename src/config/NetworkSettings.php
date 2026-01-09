@@ -29,7 +29,9 @@ final class NetworkSettings {
 		private string $bindAddress,
 		private int $bindPort,
 		private string $backendAddress,
-		private int $backendPort
+		private int $backendPort,
+		private int $sessionTimeout,
+		private int $maxMtu
 	){}
 
 	public function getBindAddress() : string{
@@ -62,5 +64,21 @@ final class NetworkSettings {
 
 	public function setBackendPort(int $backendPort) : void{
 		$this->backendPort = $backendPort;
+	}
+
+	public function getSessionTimeout() : int{
+		return $this->sessionTimeout;
+	}
+
+	public function setSessionTimeout(int $sessionTimeout) : void{
+		$this->sessionTimeout = $sessionTimeout;
+	}
+
+	public function getMaxMtu() : int{
+		return $this->maxMtu;
+	}
+
+	public function setMaxMtu(int $maxMtu) : void{
+		$this->maxMtu = $maxMtu;
 	}
 }

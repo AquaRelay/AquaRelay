@@ -1,19 +1,21 @@
 # AquaRelay configuration
 
-network:
+network-settings:
   bind:
     address: 0.0.0.0
     port: 19132
-
   backend:
     address: 127.0.0.1
     port: 19133
 
-game-settings:
   session-timeout: 10
+  max-mtu: 1492
+
+misc-settings:
   debug-mode: false
+  log-name: proxy.log
 
+game-settings:
   max-players: 50
-
   motd: "§bAquaRelay Proxy"
   sub-motd: "www.aquarelay.dev"

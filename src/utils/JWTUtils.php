@@ -21,37 +21,31 @@
 
 declare(strict_types=1);
 
-namespace aquarelay\config;
+namespace aquarelay\utils;
 
-final class GameSettings {
+class JWTUtils
+{
 
-	public function __construct(
-		private int $maxPlayers,
-		private string $motd,
-		private string $subMotd
-	){}
+	use InstanceTrait;
 
-	public function getMaxPlayers() : int{
-		return $this->maxPlayers;
+	public function getUsernameFromJwt(string $jwt) : ?string{
+		$parts = explode('.', $jwt);
+		if(count($parts) < 2){
+			throw new JWTException("The payload is corrupted");
+		}
+
+		$payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+		if(!is_array($payload)){
+			throw new JWTException("The payload is corrupted");
+		}
+
+		$displayName = $payload["extraData"]["displayName"] ?? null;
+
+		if (is_null($displayName)){
+			throw new JWTException("Could not parse display name from JWT");
+		}
+
+		return $displayName;
 	}
 
-	public function setMaxPlayers(int $maxPlayers) : void{
-		$this->maxPlayers = $maxPlayers;
-	}
-
-	public function getMotd() : string{
-		return $this->motd;
-	}
-
-	public function setMotd(string $motd) : void{
-		$this->motd = $motd;
-	}
-
-	public function getSubMotd() : string{
-		return $this->subMotd;
-	}
-
-	public function setSubMotd(string $subMotd) : void{
-		$this->subMotd = $subMotd;
-	}
 }

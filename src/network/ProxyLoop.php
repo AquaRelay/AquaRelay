@@ -26,8 +26,15 @@ namespace aquarelay\network;
 use aquarelay\ProxyServer;
 use aquarelay\config\ProxyConfig;
 use aquarelay\session\ClientSession;
+use aquarelay\utils\JWTUtils;
+use pocketmine\network\mcpe\protocol\LoginPacket;
+use pocketmine\network\mcpe\protocol\PacketDecodeException;
+use pocketmine\network\mcpe\protocol\PacketPool;
+use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use raklib\client\ClientSocket;
 use raklib\generic\SocketException;
+use pmmp\encoding\ByteBufferReader;
+use pmmp\encoding\DataDecodeException;
 use raklib\utils\InternetAddress;
 
 class ProxyLoop {
@@ -57,7 +64,7 @@ class ProxyLoop {
 		$this->server->interface->process();
 
 		foreach($this->sessions as $sessionId => $session){
-			$socket = $session->socket();
+			$socket = $session->getSocket();
 
 			try {
 				$packet = $socket->readPacket();
@@ -67,12 +74,12 @@ class ProxyLoop {
 					$session->touch();
 				}
 			} catch (SocketException $e) {
-				$this->server->getLogger()->warn("Backend connection lost for session $sessionId: " . $e->getMessage());
+				$this->server->getLogger()->warning("Backend connection lost for session $sessionId: " . $e->getMessage());
 				$this->closeSessionInternal($sessionId);
 				continue;
 			}
 
-			if($session->expired($this->config->getGameSettings()->getSessionTimeout())){
+			if($session->expired($this->config->getNetworkSettings()->getSessionTimeout())){
 				$this->server->getLogger()->info("Session timed out: $sessionId");
 				$this->server->interface->closeSession($sessionId);
 				unset($this->sessions[$sessionId]);
@@ -100,19 +107,51 @@ class ProxyLoop {
 		}
 	}
 
-	private function handlePacket(int $sessionId, string $buffer): void {
-		if(isset($this->sessions[$sessionId])){
-			$this->sessions[$sessionId]->touch();
+	private function handlePacket(int $sessionId, string $payload): void{
+		if(!isset($this->sessions[$sessionId])){
+			return;
+		}
 
-			try {
-				// Client (RakLib) -> Proxy -> Backend
-				$socket = $this->sessions[$sessionId]->socket();
-				$socket->writePacket($buffer);
-			} catch (SocketException) {
-				$this->closeSessionInternal($sessionId);
+		$session = $this->sessions[$sessionId];
+		$session->touch();
+
+		if($payload === "" || $payload[0] !== "\xfe"){
+			return;
+		}
+
+		$payload = substr($payload, 1);
+
+		try{
+			$stream = new ByteBufferReader($payload);
+
+			foreach(PacketBatch::decodeRaw($stream) as $buffer){
+				$packet = PacketPool::getInstance()->getPacket($buffer);
+				if($packet === null){
+					throw new \RuntimeException("Unknown packet");
+				}
+
+				$reader = new ByteBufferReader($buffer);
+				$packet->decode($reader);
+
+				$this->server->getLogger()->debug("Packet: {$packet->getName()} with PID: {$packet->pid()}");
+
+				if($packet instanceof LoginPacket){
+					$username = JWTUtils::getInstance()->getUsernameFromJwt($packet->clientDataJwt);
+
+					$session->setUsername($username);
+
+					$this->server->getLogger()->info("Proxy login: $username ({$session->getAddress()})");
+				}
+
+				$session->getSocket()->writePacket("\xfe" . $payload);
 			}
+
+		}catch(PacketDecodeException|DataDecodeException|\Throwable){
+			$this->closeSessionInternal($sessionId);
 		}
 	}
+
+
 
 	private function handleDisconnect(int $sessionId, string $reason): void {
 		if(isset($this->sessions[$sessionId])){
