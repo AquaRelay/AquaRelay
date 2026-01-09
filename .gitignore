@@ -11,3 +11,8 @@ Desktop.ini
 /nbproject/private/
 
 vendor/*
+
+# AquaRelay files
+config.yml
+*.log
+AquaRelay.phar

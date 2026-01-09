@@ -27,23 +27,49 @@ use Symfony\Component\Yaml\Yaml;
 
 final class ProxyConfig {
 
-    public function __construct(
-        public readonly string $bindAddress,
-        public readonly int $bindPort,
-        public readonly string $backendAddress,
-        public readonly int $backendPort,
-        public readonly int $sessionTimeout
-    ){}
+	public function __construct(
+		private readonly NetworkSettings $networkSettings,
+		private readonly MiscSettings $miscSettings,
+		private readonly GameSettings $gameSettings
+	){}
 
-    public static function load(string $file) : self{
-        $data = Yaml::parseFile($file);
+	public static function load(string $file) : self{
+		$data = Yaml::parseFile($file);
+		
+		$networkSettings = $data["network-settings"];
+		$miscSettings = $data["misc-settings"];
+		$gameSettings = $data["game-settings"];
 
-        return new self(
-            $data["bind"]["address"],
-            (int) $data["bind"]["port"],
-            $data["backend"]["address"],
-            (int) $data["backend"]["port"],
-            (int) $data["session-timeout"]
-        );
-    }
+		return new self(
+			new NetworkSettings(
+				$networkSettings["bind"]["address"],
+				(int) $networkSettings["bind"]["port"],
+				$networkSettings["backend"]["address"],
+				(int) $networkSettings["backend"]["port"],
+				(int) $networkSettings["session-timeout"],
+				(int) $networkSettings["max-mtu"]
+			),
+			new MiscSettings(
+				(bool) $miscSettings["debug-mode"],
+				$miscSettings["log-name"]
+			),
+			new GameSettings(
+				(int) $gameSettings["max-players"],
+				$gameSettings["motd"],
+				$gameSettings["sub-motd"]
+			),
+		);
+	}
+
+	public function getNetworkSettings() : NetworkSettings {
+		return $this->networkSettings;
+	}
+
+	public function getMiscSettings() : MiscSettings {
+		return $this->miscSettings;
+	}
+
+	public function getGameSettings() : GameSettings {
+		return $this->gameSettings;
+	}
 }

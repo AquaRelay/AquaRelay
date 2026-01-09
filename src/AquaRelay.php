@@ -21,74 +21,71 @@
 
 declare(strict_types=1);
 
-namespace aquarelay {
+namespace aquarelay;
 
-    use aquarelay\config\ProxyConfig;
-	use aquarelay\network\ProxyLoop;
-	use aquarelay\utils\Colors;
-    use Throwable;
-	use function extension_loaded;
-	use function version_compare;
+use aquarelay\utils\Colors;
+use Throwable;
+use function extension_loaded;
+use function version_compare;
 
-    require dirname(__DIR__) . '/vendor/autoload.php';
+require dirname(__DIR__) . '/vendor/autoload.php';
 
-    if (Colors::supportsColors()){
-        @sapi_windows_vt100_support(STDOUT, true);
-    }
-
-	function error(string $message) : void
-	{
-		echo "Error: $message\n";
-	}
-
-	function checkDependencies(): void
-	{
-		if (version_compare("8.1.0", PHP_VERSION) > 0) {
-			error("PHP 8.1.0 or greater is required");
-			exit(1);
-		}
-
-		$required = [
-			"yaml"
-		];
-
-		foreach ($required as $depend) {
-			if (!extension_loaded($depend)) {
-				error("$depend is not installed.");
-				exit(1);
-			}
-		}
-	}
-
-	function setEntries() : void
-	{
-		ini_set("display_errors", "1");
-		ini_set("display_startup_errors", "1");
-		ini_set("default_charset", "UTF-8");
-		ini_set("allow_url_fopen", "1");
-	}
-
-	function start() : void
-	{
-		checkDependencies();
-		setEntries();
-		error_reporting(E_ALL);
-		date_default_timezone_set("UTC");
-
-		define("BASE_PATH", dirname(__DIR__));
-		define("RESOURCE_PATH", BASE_PATH . "/resources");
-		define("CONFIG_FILE", RESOURCE_PATH . "/config.yml");
-
-		try {
-			$server = new ProxyServer(ProxyConfig::load(CONFIG_FILE));
-
-			$loop = new ProxyLoop($server, $server->getConfig());
-			$loop->run();
-		} catch(Throwable $e) {
-			error($e->getMessage());
-			exit(1);
-		}
-	}
-
-	start();
+if (Colors::supportsColors()){
+	@sapi_windows_vt100_support(STDOUT, true);
 }
+
+function error(string $message) : void
+{
+	echo Colors::RED . "Error: $message" . Colors::RESET . "\n";
+}
+
+function checkDependencies(): void
+{
+	if (version_compare("8.1.0", PHP_VERSION) > 0) {
+		error("PHP 8.1.0 or greater is required");
+		exit(1);
+	}
+
+	$required = [
+		"yaml",
+		"sockets"
+	];
+
+	foreach ($required as $depend) {
+		if (!extension_loaded($depend)) {
+			error("$depend extension is not installed.");
+			exit(1);
+		}
+	}
+}
+
+function setEntries() : void
+{
+	ini_set("display_errors", "1");
+	ini_set("display_startup_errors", "1");
+	ini_set("default_charset", "UTF-8");
+	ini_set("allow_url_fopen", "1");
+}
+
+function start() : void
+{
+	checkDependencies();
+	setEntries();
+	error_reporting(E_ALL);
+	date_default_timezone_set("UTC");
+
+	define("BASE_PATH", dirname(__DIR__));
+	define("RESOURCE_PATH", BASE_PATH . "/resources");
+
+	try {
+		new ProxyServer(
+			BASE_PATH,
+			RESOURCE_PATH
+		);
+	} catch(Throwable $e) {
+		error($e->getMessage());
+		exit(1);
+	}
+}
+
+start();

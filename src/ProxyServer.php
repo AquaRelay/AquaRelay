@@ -15,7 +15,7 @@
  * (at your option) any later version.
  *
  * @author AquaRelay Team
- * @link http://www.aquarelay.dev/
+ * @link https://www.aquarelay.dev/
  *
  */
 
@@ -24,67 +24,151 @@ declare(strict_types=1);
 namespace aquarelay;
 
 use aquarelay\config\ProxyConfig;
+use aquarelay\network\ProxyLoop;
+use aquarelay\network\raklib\RakLibInterface;
+use aquarelay\utils\Colors;
 use aquarelay\utils\MainLogger;
-use raklib\client\ClientSocket;
-use raklib\server\ServerSocket;
-use raklib\utils\InternetAddress;
-use Throwable;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 
 class ProxyServer {
 
-    public ServerSocket $listener;
-    public ClientSocket $unconnectedBackend;
+	public const NAME = "AquaRelay";
+	public const VERSION = "1.0.0-alpha"; // Semver
+	public const IS_DEVELOPMENT = true;
+	public RakLibInterface $interface;
+	private MainLogger $logger;
+	private ProxyConfig $config;
+	private static ?self $instance = null;
 
-    private MainLogger $logger;
-    private ProxyConfig $config;
+	/**
+	 * Returns a server instance, can be nullable
+	 * @return ProxyServer|null
+	 */
+	public static function getInstance() : ?ProxyServer
+	{
+		return self::$instance;
+	}
 
-    private static ?self $instance = null;
+	/**
+	 * Returns the configuration of proxy
+	 * @return ProxyConfig
+	 */
+	public function getConfig() : ProxyConfig
+	{
+		return $this->config;
+	}
 
-    public static function getInstance() : ?ProxyServer{
-        return self::$instance;
-    }
+	public function getLogger() : MainLogger
+	{
+		return $this->logger;
+	}
 
-    public function getConfig() : ProxyConfig
-    {
-        return $this->config;
-    }
+	public function getAddress() : string
+	{
+		return $this->getConfig()->getNetworkSettings()->getBindAddress();
+	}
 
-    public function __construct(ProxyConfig $config){
-        $startTime = microtime(true);
-        self::$instance = $this;
-		$this->config = $config;
+	public function getPort() : int
+	{
+		return $this->getConfig()->getNetworkSettings()->getBindPort();
+	}
 
-        $this->logger = new MainLogger("Main Thread", false);
-        $this->logger->info("Starting server...");
+	public function getMotd() : string
+	{
+		return $this->getConfig()->getGameSettings()->getMotd();
+	}
 
-        set_exception_handler(function(Throwable $e){
-            $this->logger->alert("Uncaught exception: " . $e->getMessage());
-            $this->logger->debug($e->getTraceAsString());
-            exit(1);
-        });
+	public function getSubMotd() : string
+	{
+		return $this->getConfig()->getGameSettings()->getSubMotd();
+	}
 
-        set_error_handler(function(
-            int $severity,
-            string $message,
-            string $file,
-            int $line
-        ){
-            $this->logger->error("$message ($file:$line)");
-        });
+	public function isDebug() : bool
+	{
+		return $this->getConfig()->getMiscSettings()->isDebugMode();
+	}
 
-        $this->unconnectedBackend = new ClientSocket(
-            new InternetAddress($config->backendAddress, $config->backendPort, 4)
-        );
-        $this->unconnectedBackend->setBlocking(false);
-        $this->logger->info("Binding client socket to: $config->backendAddress:$config->backendPort");
+	public function getMaxPlayers() : int
+	{
+		return $this->getConfig()->getGameSettings()->getMaxPlayers();
+	}
 
-        $this->listener = new ServerSocket(
-            new InternetAddress($config->bindAddress, $config->bindPort, 4)
-        );
-        $this->listener->setBlocking(false);
-        $this->logger->info("Binding listener to: {$config->bindAddress}:{$config->bindPort}");
+	/**
+	 * Returns the latest supported version of Minecraft
+	 * @return string
+	 */
+	public function getMinecraftVersion() : string
+	{
+		return ProtocolInfo::MINECRAFT_VERSION_NETWORK;
+	}
 
-        $this->logger->info("Started proxy! (" . round(microtime(true) - $startTime, 3) ."s)");
-    }
+	public function getName() : string
+	{
+		return self::NAME;
+	}
+
+	public function getVersion() : string
+	{
+		return self::VERSION;
+	}
+
+	public function getDataPath() : string
+	{
+		return $this->dataPath;
+	}
+
+	public function getResourcePath() : string
+	{
+		return $this->resourcePath;
+	}
+
+	public function __construct(
+		private string $dataPath,
+		private string $resourcePath
+	){
+		if (self::$instance !== null) {
+			throw new \LogicException("Server instance is already initialized");
+		}
+
+		self::$instance = $this;
+		$startTime = microtime(true);
+		$configFile = $this->dataPath . "/config.yml";
+
+		if (!file_exists($configFile)) {
+			$source = RESOURCE_PATH . "/config.yml";
+			if (!file_exists($source)) {
+				throw new \RuntimeException("Default configuration file missing in resources folder");
+			}
+
+			if (!copy($source, $configFile)) {
+				throw new \RuntimeException("Failed to create config.yml. Please check permissions.");
+			}
+		}
+		
+		$this->config = ProxyConfig::load($configFile);
+		$this->logger = new MainLogger("Main Thread", "proxy.log", $this->isDebug());
+
+		if (self::IS_DEVELOPMENT){
+			$this->logger->warning("You are using development build. Be careful, your progress may be lost in future.");
+		}
+
+		$this->logger->info("Loading server configuration");
+
+		$this->logger->info("Starting " . $this->getName() . " version " . $this->getVersion());
+		$this->logger->info("This server is running Minecraft: Bedrock Edition " . Colors::BLUE . "v" . $this->getMinecraftVersion());
+
+		$this->logger->info("Initializing RakLib Interface...");
+		$this->interface = new RakLibInterface($this->dataPath, $this->logger, $this->getAddress(), $this->getPort(), $this->getConfig()->getNetworkSettings()->getMaxMtu());
+		$this->interface->setName($this->getMotd(), $this->getSubMotd());
+
+		$this->logger->info("Listening on {$this->getAddress()}:{$this->getPort()}");
+
+		$this->interface->start();
+
+		$this->logger->info("Proxy started! (" . round(microtime(true) - $startTime, 3) ."s)");
+
+		$loop = new ProxyLoop($this, $this->config);
+		$loop->run();
+	}
 
 }

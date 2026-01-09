@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c6b9c53c26b9b401c16b08e3c722fccf",
+    "content-hash": "77dbfbe75703753b35a3b33070221ffc",
     "packages": [
         {
             "name": "brick/math",
@@ -440,6 +440,87 @@
             "time": "2025-12-24T03:02:42+00:00"
         },
         {
+            "name": "pocketmine/raklib-ipc",
+            "version": "1.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/pmmp/RakLibIpc.git",
+                "reference": "ce632ef2c6743e71eddb5dc329c49af6555f90bc"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/pmmp/RakLibIpc/zipball/ce632ef2c6743e71eddb5dc329c49af6555f90bc",
+                "reference": "ce632ef2c6743e71eddb5dc329c49af6555f90bc",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.0",
+                "php-64bit": "*",
+                "pocketmine/binaryutils": "^0.2.0",
+                "pocketmine/raklib": "^0.15.0 || ^1.0.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "1.10.1",
+                "phpstan/phpstan-strict-rules": "^1.0.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "raklib\\server\\ipc\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPL-3.0"
+            ],
+            "description": "Channel-based protocols for inter-thread/inter-process communication with RakLib",
+            "support": {
+                "issues": "https://github.com/pmmp/RakLibIpc/issues",
+                "source": "https://github.com/pmmp/RakLibIpc/tree/1.0.1"
+            },
+            "time": "2024-03-01T15:55:05+00:00"
+        },
+        {
+            "name": "pocketmine/snooze",
+            "version": "0.5.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/pmmp/Snooze.git",
+                "reference": "a86d9ee60ce44755d166d3c7ba4b8b8be8360915"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/pmmp/Snooze/zipball/a86d9ee60ce44755d166d3c7ba4b8b8be8360915",
+                "reference": "a86d9ee60ce44755d166d3c7ba4b8b8be8360915",
+                "shasum": ""
+            },
+            "require": {
+                "ext-pmmpthread": "^6.0",
+                "php-64bit": "^8.1"
+            },
+            "require-dev": {
+                "phpstan/extension-installer": "^1.0",
+                "phpstan/phpstan": "1.10.3",
+                "phpstan/phpstan-strict-rules": "^1.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "pocketmine\\snooze\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "LGPL-3.0"
+            ],
+            "description": "Thread notification management library for code using the pthreads extension",
+            "support": {
+                "issues": "https://github.com/pmmp/Snooze/issues",
+                "source": "https://github.com/pmmp/Snooze/tree/0.5.0"
+            },
+            "time": "2023-05-22T23:43:01+00:00"
+        },
+        {
             "name": "ramsey/collection",
             "version": "2.1.1",
             "source": {
@@ -661,6 +742,76 @@
             "time": "2024-09-25T14:21:43+00:00"
         },
         {
+            "name": "symfony/filesystem",
+            "version": "v6.4.30",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/filesystem.git",
+                "reference": "441c6b69f7222aadae7cbf5df588496d5ee37789"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/filesystem/zipball/441c6b69f7222aadae7cbf5df588496d5ee37789",
+                "reference": "441c6b69f7222aadae7cbf5df588496d5ee37789",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.1",
+                "symfony/polyfill-ctype": "~1.8",
+                "symfony/polyfill-mbstring": "~1.8"
+            },
+            "require-dev": {
+                "symfony/process": "^5.4|^6.4|^7.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Symfony\\Component\\Filesystem\\": ""
+                },
+                "exclude-from-classmap": [
+                    "/Tests/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Fabien Potencier",
+                    "email": "fabien@symfony.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Provides basic utilities for the filesystem",
+            "homepage": "https://symfony.com",
+            "support": {
+                "source": "https://github.com/symfony/filesystem/tree/v6.4.30"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2025-11-26T14:43:45+00:00"
+        },
+        {
             "name": "symfony/polyfill-ctype",
             "version": "v1.33.0",
             "source": {
@@ -742,6 +893,91 @@
                 }
             ],
             "time": "2024-09-09T11:45:10+00:00"
+        },
+        {
+            "name": "symfony/polyfill-mbstring",
+            "version": "v1.33.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/polyfill-mbstring.git",
+                "reference": "6d857f4d76bd4b343eac26d6b539585d2bc56493"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/polyfill-mbstring/zipball/6d857f4d76bd4b343eac26d6b539585d2bc56493",
+                "reference": "6d857f4d76bd4b343eac26d6b539585d2bc56493",
+                "shasum": ""
+            },
+            "require": {
+                "ext-iconv": "*",
+                "php": ">=7.2"
+            },
+            "provide": {
+                "ext-mbstring": "*"
+            },
+            "suggest": {
+                "ext-mbstring": "For best performance"
+            },
+            "type": "library",
+            "extra": {
+                "thanks": {
+                    "url": "https://github.com/symfony/polyfill",
+                    "name": "symfony/polyfill"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "bootstrap.php"
+                ],
+                "psr-4": {
+                    "Symfony\\Polyfill\\Mbstring\\": ""
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nicolas Grekas",
+                    "email": "p@tchwork.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Symfony polyfill for the Mbstring extension",
+            "homepage": "https://symfony.com",
+            "keywords": [
+                "compatibility",
+                "mbstring",
+                "polyfill",
+                "portable",
+                "shim"
+            ],
+            "support": {
+                "source": "https://github.com/symfony/polyfill-mbstring/tree/v1.33.0"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2024-12-23T08:48:59+00:00"
         },
         {
             "name": "symfony/yaml",
@@ -827,7 +1063,9 @@
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
-        "php": ">=8.1"
+        "php": ">=8.1",
+        "ext-pmmpthread": "^6.1.0",
+        "ext-encoding": "~1.0.0"
     },
     "platform-dev": {},
     "plugin-api-version": "2.6.0"

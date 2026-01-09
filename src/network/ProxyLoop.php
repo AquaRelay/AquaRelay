@@ -26,21 +26,32 @@ namespace aquarelay\network;
 use aquarelay\ProxyServer;
 use aquarelay\config\ProxyConfig;
 use aquarelay\session\ClientSession;
+use aquarelay\utils\JWTUtils;
+use pocketmine\network\mcpe\protocol\LoginPacket;
+use pocketmine\network\mcpe\protocol\PacketDecodeException;
+use pocketmine\network\mcpe\protocol\PacketPool;
+use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use raklib\client\ClientSocket;
-use raklib\protocol\MessageIdentifiers;
+use raklib\generic\SocketException;
+use pmmp\encoding\ByteBufferReader;
+use pmmp\encoding\DataDecodeException;
 use raklib\utils\InternetAddress;
 
 class ProxyLoop {
 
-	/** @var ClientSession[][] */
-	private array $clients = [];
-
-	private ?string $cachedPong = null;
+	/** @var ClientSession[] */
+	private array $sessions = [];
 
 	public function __construct(
 		private ProxyServer $server,
 		private ProxyConfig $config
-	){}
+	){
+		$this->server->interface->setHandlers(
+			$this->handleConnect(...),
+			$this->handlePacket(...),
+			$this->handleDisconnect(...)
+		);
+	}
 
 	public function run() : void{
 		while(true){
@@ -50,107 +61,109 @@ class ProxyLoop {
 	}
 
 	private function tick() : void{
-		$read = [
-			$this->server->listener->getSocket(),
-			$this->server->unconnectedBackend->getSocket()
-		];
+		$this->server->interface->process();
 
-		$map = [];
+		foreach($this->sessions as $sessionId => $session){
+			$socket = $session->getSocket();
 
-		foreach($this->clients as $ports){
-			foreach($ports as $client){
-				$sock = $client->socket()->getSocket();
-				$read[] = $sock;
-				$map[(int)$sock] = $client;
-			}
-		}
-
-		if(@socket_select($read, $w, $e, 0, 200000) <= 0){
-			return;
-		}
-
-		foreach($read as $sock){
-			if($sock === $this->server->listener->getSocket()){
-				$this->handleClient();
-			}elseif($sock === $this->server->unconnectedBackend->getSocket()){
-				$this->handleBackendPing();
-			}elseif(isset($map[(int)$sock])){
-				$this->relayBackendToClient($map[(int)$sock]);
-			}
-		}
-
-		$this->cleanup();
-	}
-
-	private function handleBackendPing() : void{
-		$buf = $this->server->unconnectedBackend->readPacket();
-		if($buf !== null && ord($buf[0]) === MessageIdentifiers::ID_UNCONNECTED_PONG){
-			$this->cachedPong = $buf;
-		}
-	}
-
-	private function handleClient() : void{
-		$buf = $this->server->listener->readPacket($ip, $port);
-		if($buf === null){
-			return;
-		}
-
-		$pid = ord($buf[0]);
-
-		if($pid === MessageIdentifiers::ID_UNCONNECTED_PING){
-			$this->server->unconnectedBackend->writePacket($buf);
-			if($this->cachedPong !== null){
-				$this->server->listener->writePacket($this->cachedPong, $ip, $port);
-			}
-			return;
-		}
-
-		if(isset($this->clients[$ip][$port])){
-			$client = $this->clients[$ip][$port];
-			$client->touch();
-			$client->socket()->writePacket($buf);
-			return;
-		}
-
-		if($pid === MessageIdentifiers::ID_OPEN_CONNECTION_REQUEST_1){
-			$backend = new ClientSocket(
-				new InternetAddress(
-					$this->config->backendAddress,
-					$this->config->backendPort,
-					4
-				)
-			);
-			$backend->setBlocking(false);
-
-			$this->clients[$ip][$port] = new ClientSession(
-				new InternetAddress($ip, $port, 4),
-				$backend
-			);
-
-			$backend->writePacket($buf);
-		}
-	}
-
-	private function relayBackendToClient(ClientSession $client) : void{
-		$buf = $client->socket()->readPacket();
-		if($buf !== null){
-			$addr = $client->address();
-			$this->server->listener->writePacket(
-				$buf,
-				$addr->getIp(),
-				$addr->getPort()
-			);
-		}
-	}
-
-	private function cleanup() : void{
-		foreach($this->clients as $ip => $ports){
-			foreach($ports as $port => $client){
-				if($client->expired($this->config->sessionTimeout)){
-					socket_close($client->socket()->getSocket());
-					unset($this->clients[$ip][$port]);
+			try {
+				$packet = $socket->readPacket();
+				if ($packet !== null) {
+					// Backend -> Proxy -> Client (RakLib)
+					$this->server->interface->sendPacket($sessionId, $packet);
+					$session->touch();
 				}
+			} catch (SocketException $e) {
+				$this->server->getLogger()->warning("Backend connection lost for session $sessionId: " . $e->getMessage());
+				$this->closeSessionInternal($sessionId);
+				continue;
 			}
+
+			if($session->expired($this->config->getNetworkSettings()->getSessionTimeout())){
+				$this->server->getLogger()->info("Session timed out: $sessionId");
+				$this->server->interface->closeSession($sessionId);
+				unset($this->sessions[$sessionId]);
+			}
+		}
+	}
+
+	private function handleConnect(int $sessionId, string $ip, int $port): void {
+		$this->server->getLogger()->info("Client connected: $ip:$port (ID: $sessionId)");
+
+		try {
+			$address = $this->config->getNetworkSettings()->getBackendAddress();
+			$port = $this->config->getNetworkSettings()->getBackendPort();
+
+			$backendSocket = new ClientSocket(new InternetAddress($address, $port, 4));
+			$backendSocket->setBlocking(false);
+
+			$this->sessions[$sessionId] = new ClientSession(
+				new InternetAddress($ip, $port, 4),
+				$backendSocket
+			);
+		} catch (SocketException $e) {
+			$this->server->getLogger()->error("Could not connect to backend: " . $e->getMessage());
+			$this->server->interface->closeSession($sessionId);
+		}
+	}
+
+	private function handlePacket(int $sessionId, string $payload): void{
+		if(!isset($this->sessions[$sessionId])){
+			return;
+		}
+
+		$session = $this->sessions[$sessionId];
+		$session->touch();
+
+		if($payload === "" || $payload[0] !== "\xfe"){
+			return;
+		}
+
+		$payload = substr($payload, 1);
+
+		try{
+			$stream = new ByteBufferReader($payload);
+
+			foreach(PacketBatch::decodeRaw($stream) as $buffer){
+				$packet = PacketPool::getInstance()->getPacket($buffer);
+				if($packet === null){
+					throw new \RuntimeException("Unknown packet");
+				}
+
+				$reader = new ByteBufferReader($buffer);
+				$packet->decode($reader);
+
+				$this->server->getLogger()->debug("Packet: {$packet->getName()} with PID: {$packet->pid()}");
+
+				if($packet instanceof LoginPacket){
+					$username = JWTUtils::getInstance()->getUsernameFromJwt($packet->clientDataJwt);
+
+					$session->setUsername($username);
+
+					$this->server->getLogger()->info("Proxy login: $username ({$session->getAddress()})");
+				}
+
+				$session->getSocket()->writePacket("\xfe" . $payload);
+			}
+
+		}catch(PacketDecodeException|DataDecodeException|\Throwable){
+			$this->closeSessionInternal($sessionId);
+		}
+	}
+
+
+
+	private function handleDisconnect(int $sessionId, string $reason): void {
+		if(isset($this->sessions[$sessionId])){
+			$this->server->getLogger()->info("Client disconnected: $reason");
+			unset($this->sessions[$sessionId]);
+		}
+	}
+
+	private function closeSessionInternal(int $sessionId) : void {
+		if(isset($this->sessions[$sessionId])){
+			$this->server->interface->closeSession($sessionId);
+			unset($this->sessions[$sessionId]);
 		}
 	}
 }
