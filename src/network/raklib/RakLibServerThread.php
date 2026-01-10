@@ -90,7 +90,7 @@ class RakLibServerThread extends Thread {
 			new UserToRakLibThreadMessageReceiver(new PthreadsChannelReader($this->mainToThread)),
 			new RakLibToUserThreadMessageSender(new PthreadsChannelWriter($this->threadToMain)),
 			new ExceptionTraceCleaner($this->mainPath),
-			recvMaxSplitParts: 512// TODO: Move this to a variable
+			recvMaxSplitParts: 512
 		);
 
 		while ($this->running) {
