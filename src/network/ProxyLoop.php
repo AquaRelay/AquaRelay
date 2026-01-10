@@ -23,23 +23,24 @@ declare(strict_types=1);
 
 namespace aquarelay\network;
 
-use aquarelay\ProxyServer;
 use aquarelay\config\ProxyConfig;
-use aquarelay\session\ClientSession;
+use aquarelay\network\raklib\RakLibInterface;
+use aquarelay\network\raklib\RakLibPacketSender;
+use aquarelay\ProxyServer;
 use aquarelay\utils\JWTUtils;
+use pmmp\encoding\ByteBufferReader;
+use pmmp\encoding\DataDecodeException;
 use pocketmine\network\mcpe\protocol\LoginPacket;
 use pocketmine\network\mcpe\protocol\PacketDecodeException;
 use pocketmine\network\mcpe\protocol\PacketPool;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use raklib\client\ClientSocket;
 use raklib\generic\SocketException;
-use pmmp\encoding\ByteBufferReader;
-use pmmp\encoding\DataDecodeException;
 use raklib\utils\InternetAddress;
 
 class ProxyLoop {
 
-	/** @var ClientSession[] */
+	/** @var NetworkSession[] */
 	private array $sessions = [];
 
 	public function __construct(
@@ -71,7 +72,7 @@ class ProxyLoop {
 				if ($packet !== null) {
 					// Backend -> Proxy -> Client (RakLib)
 					$this->server->interface->sendPacket($sessionId, $packet);
-					$session->touch();
+					$session->tick();
 				}
 			} catch (SocketException $e) {
 				$this->server->getLogger()->warning("Backend connection lost for session $sessionId: " . $e->getMessage());
@@ -97,10 +98,15 @@ class ProxyLoop {
 			$backendSocket = new ClientSocket(new InternetAddress($address, $port, 4));
 			$backendSocket->setBlocking(false);
 
-			$this->sessions[$sessionId] = new ClientSession(
-				new InternetAddress($ip, $port, 4),
-				$backendSocket
-			);
+			$this->sessions[$sessionId] =
+				new NetworkSession(
+					$this->server,
+					NetworkSessionManager::getInstance(),
+					PacketPool::getInstance(),
+					new RakLibPacketSender($sessionId, $this->server->interface),
+					new InternetAddress($ip, $port, 4),
+					$backendSocket
+				);
 		} catch (SocketException $e) {
 			$this->server->getLogger()->error("Could not connect to backend: " . $e->getMessage());
 			$this->server->interface->closeSession($sessionId);
@@ -113,9 +119,9 @@ class ProxyLoop {
 		}
 
 		$session = $this->sessions[$sessionId];
-		$session->touch();
+		$session->tick();
 
-		if($payload === "" || $payload[0] !== "\xfe"){
+		if($payload === "" || $payload[0] !== RakLibInterface::MCPE_RAKNET_PACKET_ID){
 			return;
 		}
 
@@ -127,7 +133,7 @@ class ProxyLoop {
 			foreach(PacketBatch::decodeRaw($stream) as $buffer){
 				$packet = PacketPool::getInstance()->getPacket($buffer);
 				if($packet === null){
-					throw new \RuntimeException("Unknown packet");
+					throw new NetworkException("Unknown packet");
 				}
 
 				$reader = new ByteBufferReader($buffer);
@@ -150,8 +156,6 @@ class ProxyLoop {
 			$this->closeSessionInternal($sessionId);
 		}
 	}
-
-
 
 	private function handleDisconnect(int $sessionId, string $reason): void {
 		if(isset($this->sessions[$sessionId])){

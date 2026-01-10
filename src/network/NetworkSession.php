@@ -21,16 +21,31 @@
 
 declare(strict_types=1);
 
-namespace aquarelay\session;
+namespace aquarelay\network;
 
+use aquarelay\ProxyServer;
+use pocketmine\network\mcpe\protocol\PacketPool;
 use raklib\client\ClientSocket;
 use raklib\utils\InternetAddress;
 
-class ClientSession {
+class NetworkSession {
 
     private int $lastUsed;
+	private ?string $username = null;
+	private ?int $ping = null;
+	private bool $connected = true;
+	private bool $logged = false;
 
-    public function __construct(private readonly InternetAddress $address, private readonly ClientSocket $socket, private ?string $username = null){
+    public function __construct(
+		private ProxyServer $server,
+		private NetworkSessionManager $manager,
+		private PacketPool $packetPool,
+		private PacketSender $sender,
+		private InternetAddress $address,
+		private ClientSocket $socket
+	){
+		$this->manager->add($this);
+		$this->server->getLogger()->debug("New network session created");
         $this->lastUsed = time();
     }
 
@@ -50,11 +65,31 @@ class ClientSession {
         return $this->socket;
     }
 
-    public function touch() : void{
+    public function tick() : void{
         $this->lastUsed = time();
     }
 
     public function expired(int $timeout) : bool{
         return (time() - $this->lastUsed) > $timeout;
     }
+
+	public function getPing() : int
+	{
+		return $this->ping;
+	}
+
+	public function setPing(int $ping): void
+	{
+		$this->ping = $ping;
+	}
+
+	public function isConnected() : bool
+	{
+		return $this->connected;
+	}
+
+	public function isLogged() : bool
+	{
+		return $this->logged;
+	}
 }
