@@ -23,59 +23,151 @@ declare(strict_types=1);
 
 namespace aquarelay\network;
 
+use aquarelay\network\compression\ZlibCompressor;
+use aquarelay\network\handler\PacketHandler;
+use aquarelay\network\handler\PreLoginHandler;
 use aquarelay\ProxyServer;
+use pmmp\encoding\ByteBuffer;
+use pmmp\encoding\ByteBufferWriter;
+use pmmp\encoding\VarInt;
+use pmmp\encoding\ByteBufferReader;
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
+use pocketmine\network\mcpe\protocol\DisconnectPacket;
+use pocketmine\network\mcpe\protocol\LoginPacket;
 use pocketmine\network\mcpe\protocol\PacketPool;
-use raklib\client\ClientSocket;
-use raklib\utils\InternetAddress;
+use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
+use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
+use raklib\generic\DisconnectReason;
 
 class NetworkSession {
-
-    private int $lastUsed;
+	/** @var string[] */
+	private array $sendBuffer = [];
+	private bool $enableCompression = false;
+	private int $lastUsed;
 	private ?string $username = null;
 	private ?int $ping = null;
 	private bool $connected = true;
 	private bool $logged = false;
+	private ?PacketHandler $handler;
 
-    public function __construct(
+	public function __construct(
 		private ProxyServer $server,
 		private NetworkSessionManager $manager,
 		private PacketPool $packetPool,
-		private PacketSender $sender,
-		private InternetAddress $address,
-		private ClientSocket $socket
+		private PacketSender $sender
 	){
 		$this->manager->add($this);
-		$this->server->getLogger()->debug("New network session created");
-        $this->lastUsed = time();
-    }
-
-	public function setUsername(string $username): void{
-		$this->username = $username;
+		$this->lastUsed = time();
+		$this->setHandler(new PreLoginHandler($this, $this->server->getLogger()));
 	}
 
-	public function getUsername(): ?string{
-		return $this->username;
+	public function handleEncodedPacket(string $payload) : void {
+		$compressionType = ord($payload[0]);
+		$data = substr($payload, 1);
+
+		if($compressionType === CompressionAlgorithm::ZLIB){
+			try {
+				$data = ZlibCompressor::getInstance()->decompress($data);
+			} catch (\Exception $e) {
+				$this->server->getLogger()->error("Decompressing error: " . $e->getMessage());
+				return;
+			}
+		}
+
+		if (ord($data[0]) === 0xc1) {
+			$this->processSinglePacket($data);
+		} else {
+			try {
+				$stream = new ByteBufferReader($data);
+				foreach(PacketBatch::decodeRaw($stream) as $buffer){
+					$this->processSinglePacket($buffer);
+				}
+			} catch (\Exception $e) {
+				$this->server->getLogger()->error("Batch decode error: " . $e->getMessage());
+			}
+		}
 	}
 
-    public function getAddress() : InternetAddress{
-        return $this->address;
-    }
+	private function processSinglePacket(string $buffer) : void {
+		$packet = $this->packetPool->getPacket($buffer);
+		if($packet !== null){
+			$this->server->getLogger()->debug("Incoming packet: " . $packet->getName());
+			$packet->decode(new ByteBufferReader($buffer));
 
-    public function getSocket() : ClientSocket{
-        return $this->socket;
-    }
+			if($this->handler !== null){
+				$packet->handle($this->handler);
+			}
+		} else {
+			$this->server->getLogger()->debug("Unknown packet ID: 0x" . dechex(ord($buffer[0])));
+		}
+	}
 
-    public function tick() : void{
-        $this->lastUsed = time();
-    }
+	public function sendDataPacket(ClientboundPacket $packet, bool $immediate = false) : void {
+		$writer = new ByteBufferWriter();
 
-    public function expired(int $timeout) : bool{
-        return (time() - $this->lastUsed) > $timeout;
-    }
+		$packet->encode($writer);
+		$payload = $writer->getData();
+
+		$this->addToSendBuffer($payload);
+
+		if ($immediate) {
+			$this->flushGamePacketQueue();
+		}
+	}
+
+	public function flushGamePacketQueue() : void {
+		if (count($this->sendBuffer) > 0) {
+			$stream = new ByteBufferWriter();
+
+			PacketBatch::encodeRaw($stream, $this->sendBuffer);
+			$batchData = $stream->getData();
+			$this->sendBuffer = [];
+
+			if (!$this->enableCompression) {
+				$finalPayload = "\x00" . $batchData;
+			} else {
+				$compressor = ZlibCompressor::getInstance();
+				$finalPayload = "\x01" . $compressor->compress($batchData);
+			}
+
+			$this->sendEncoded($finalPayload);
+		}
+	}
+
+	private function sendEncoded(string $payload) : void {
+		$this->sender->sendRawPacket($payload);
+	}
+
+	public function enableCompression() : void {
+		$this->enableCompression = true;
+	}
+
+	public function addToSendBuffer(string $buffer) : void {
+		$this->sendBuffer[] = $buffer;
+	}
+
+	public function disconnect(string $reason) : void{
+		$this->sendDataPacket(DisconnectPacket::create(DisconnectReason::CLIENT_DISCONNECT, $reason, ""));
+	}
+
+	public function onClientLoginSuccess(LoginPacket $loginPacket): void {
+		$this->server->getLogger()->debug("Login handled. Transitioning to backend proxying...");
+		// TODO: Backend transitioning
+	}
 
 	public function getPing() : int
 	{
 		return $this->ping;
+	}
+
+	public function tick(): void {
+		$this->lastUsed = time();
+	}
+	public function getUsername() : string {
+		return $this->username;
+	}
+	public function setUsername(string $name): void {
+		$this->username = $name;
 	}
 
 	public function setPing(int $ping): void
@@ -91,5 +183,16 @@ class NetworkSession {
 	public function isLogged() : bool
 	{
 		return $this->logged;
+	}
+
+	public function getHandler() : ?PacketHandler {
+		return $this->handler;
+	}
+
+	public function setHandler(?PacketHandler $handler) : void {
+		if($this->connected){
+			$this->handler = $handler;
+			$this->handler?->setUp();
+		}
 	}
 }

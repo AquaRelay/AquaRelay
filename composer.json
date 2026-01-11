@@ -10,6 +10,8 @@
 		"pocketmine/raklib-ipc": "~1.0.0",
 		"ext-pmmpthread": "^6.1.0",
 		"ext-encoding": "~1.0.0",
+		"ext-zlib": ">=1.2.11",
+		"netresearch/jsonmapper": "~v5.0.0",
 		"pocketmine/color": "^0.3.0",
 		"pocketmine/log": "^0.4.0",
 		"pocketmine/bedrock-block-upgrade-schema": "~5.2.0+bedrock-1.21.110",

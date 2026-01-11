@@ -50,10 +50,12 @@ class RakLibInterface implements ServerEventListener {
 	private $onPacket;
 	/** @var callable(int, string): void */
 	private $onDisconnect;
+	/** @var callable(int, string): void */
+	private $onPing;
 	/** @var int */
 	private int $rakServerId;
 
-	public function getRaklibInterface() : UserToRakLibThreadMessageSender
+	public function getInterface() : UserToRakLibThreadMessageSender
 	{
 		return $this->interface;
 	}
@@ -70,10 +72,11 @@ class RakLibInterface implements ServerEventListener {
 		);
 	}
 
-	public function setHandlers(callable $onConnect, callable $onPacket, callable $onDisconnect): void {
+	public function setHandlers(callable $onConnect, callable $onPacket, callable $onDisconnect, callable $onPing): void {
 		$this->onConnect = $onConnect;
 		$this->onPacket = $onPacket;
 		$this->onDisconnect = $onDisconnect;
+		$this->onPing = $onPing;
 	}
 
 	public function start(): void {
@@ -85,15 +88,13 @@ class RakLibInterface implements ServerEventListener {
 	}
 
 	public function sendPacket(int $sessionId, string $payload, bool $immediate = true, ?int $receiptId = null): void {
-		if(isset($this->sessions[$sessionId])){
-			$pk = new EncapsulatedPacket();
-			$pk->buffer = self::MCPE_RAKNET_PACKET_ID . $payload;
-			$pk->reliability = PacketReliability::RELIABLE_ORDERED;
-			$pk->orderChannel = 0;
-			$pk->identifierACK = $receiptId;
+		$pk = new EncapsulatedPacket();
+		$pk->buffer = self::MCPE_RAKNET_PACKET_ID . $payload;
+		$pk->reliability = PacketReliability::RELIABLE_ORDERED;
+		$pk->orderChannel = 0;
+		$pk->identifierACK = $receiptId;
 
-			$this->interface->sendEncapsulated($sessionId, $pk, $immediate);
-		}
+		$this->interface->sendEncapsulated($sessionId, $pk, $immediate);
 	}
 
 	public function closeSession(int $sessionId): void {
@@ -151,9 +152,7 @@ class RakLibInterface implements ServerEventListener {
 	}
 
 	public function onPingMeasure(int $sessionId, int $pingMS): void {
-		if (isset($this->sessions[$sessionId])){
-			$this->sessions[$sessionId]->setPing($pingMS);
-		}
+		($this->onPing)($sessionId, $pingMS);
 	}
 
 	public function onPacketAck(int $sessionId, int $identifierACK): void {}

@@ -21,14 +21,8 @@
 
 declare(strict_types=1);
 
-namespace aquarelay\network;
+namespace aquarelay\network\compression;
 
-interface PacketSender
-{
+final class DecompressionException extends \RuntimeException{
 
-	public function sendPacket(string $payload, bool $immediate, ?int $receiptId) : void;
-
-	public function sendRawPacket(string $buffer) : void;
-
-	public function close() : void;
 }

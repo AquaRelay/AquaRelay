@@ -21,34 +21,22 @@
 
 declare(strict_types=1);
 
-namespace aquarelay\network\raklib;
+namespace aquarelay\network\handler;
 
-use aquarelay\network\PacketSender;
+use aquarelay\network\NetworkSession;
+use aquarelay\utils\MainLogger;
+use pocketmine\network\mcpe\protocol\PacketHandlerInterface;
+use pocketmine\network\mcpe\protocol\PacketHandlerDefaultImplTrait;
 
-class RakLibPacketSender implements PacketSender {
+abstract class PacketHandler implements PacketHandlerInterface {
+	use PacketHandlerDefaultImplTrait;
 
-	private bool $isClosed = false;
 	public function __construct(
-		private int $sessionId,
-		private RakLibInterface $interface
-	){}
-
-	public function sendPacket(string $payload, bool $immediate, ?int $receiptId) : void{
-		if(!$this->isClosed){
-			$this->interface->sendPacket($this->sessionId, $payload, $immediate, $receiptId);
-		}
+		protected NetworkSession $session,
+		protected MainLogger $logger
+	) {
+		// NOOP
 	}
 
-	public function sendRawPacket(string $buffer) : void {
-		if(!$this->isClosed){
-			$this->interface->sendPacket($this->sessionId, $buffer);
-		}
-	}
-
-	public function close() : void{
-		if(!$this->isClosed){
-			$this->isClosed = true;
-			$this->interface->close($this->sessionId);
-		}
-	}
+	public function setUp(): void {}
 }

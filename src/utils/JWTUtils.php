@@ -28,24 +28,41 @@ class JWTUtils
 
 	use InstanceTrait;
 
-	public function getUsernameFromJwt(string $jwt) : ?string{
-		$parts = explode('.', $jwt);
-		if(count($parts) < 2){
-			throw new JWTException("The payload is corrupted");
+	private function split(string $jwt) : array{
+		$v = explode(".", $jwt, limit: 4);
+		if(count($v) !== 3){
+			throw new JWTException("Expected exactly 3 JWT parts delimited by a period");
 		}
+		return [$v[0], $v[1], $v[2]];
+	}
 
-		$payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
-		if(!is_array($payload)){
-			throw new JWTException("The payload is corrupted");
+	public function b64UrlEncode(string $str) : string{
+		return rtrim(strtr(base64_encode($str), '+/', '-_'), '=');
+	}
+
+	public function b64UrlDecode(string $str) : string{
+		if(($len = strlen($str) % 4) !== 0){
+			$str .= str_repeat('=', 4 - $len);
 		}
-
-		$displayName = $payload["extraData"]["displayName"] ?? null;
-
-		if (is_null($displayName)){
-			throw new JWTException("Could not parse display name from JWT");
+		$decoded = base64_decode(strtr($str, '-_', '+/'), true);
+		if($decoded === false){
+			throw new JWTException("Malformed base64url encoded payload could not be decoded");
 		}
+		return $decoded;
+	}
 
-		return $displayName;
+	public function parse(string $token) : array{
+		$v = $this->split($token);
+		$header = json_decode($this->b64UrlDecode($v[0]), true);
+		if(!is_array($header)){
+			throw new JWTException("Failed to decode JWT header JSON: " . json_last_error_msg());
+		}
+		$body = json_decode($this->b64UrlDecode($v[1]), true);
+		if(!is_array($body)){
+			throw new JWTException("Failed to decode JWT payload JSON: " . json_last_error_msg());
+		}
+		$signature = $this->b64UrlDecode($v[2]);
+		return [$header, $body, $signature];
 	}
 
 }

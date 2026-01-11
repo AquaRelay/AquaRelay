@@ -18,17 +18,13 @@
  * @link https://www.aquarelay.dev/
  *
  */
-
 declare(strict_types=1);
 
-namespace aquarelay\network;
+namespace aquarelay\network\compression;
 
-interface PacketSender
-{
-
-	public function sendPacket(string $payload, bool $immediate, ?int $receiptId) : void;
-
-	public function sendRawPacket(string $buffer) : void;
-
-	public function close() : void;
+interface Compressor{
+	public function decompress(string $payload) : string;
+	public function compress(string $payload) : string;
+	public function getNetworkId() : int;
+	public function getCompressionThreshold() : ?int;
 }

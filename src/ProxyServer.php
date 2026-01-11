@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace aquarelay;
 
 use aquarelay\config\ProxyConfig;
+use aquarelay\network\compression\ZlibCompressor;
 use aquarelay\network\ProxyLoop;
 use aquarelay\network\raklib\RakLibInterface;
 use aquarelay\utils\Colors;
@@ -157,6 +158,9 @@ class ProxyServer {
 		$this->logger->info("Starting " . $this->getName() . " version " . $this->getVersion());
 		$this->logger->info("This server is running Minecraft: Bedrock Edition " . Colors::BLUE . "v" . $this->getMinecraftVersion());
 
+		ZlibCompressor::setInstance(new ZlibCompressor(ZlibCompressor::DEFAULT_LEVEL, ZlibCompressor::DEFAULT_THRESHOLD, ZlibCompressor::DEFAULT_MAX_DECOMPRESSION_SIZE));
+		$this->logger->debug("ZLib compressor initialized");
+
 		$this->logger->info("Initializing RakLib Interface...");
 		$this->interface = new RakLibInterface($this->dataPath, $this->logger, $this->getAddress(), $this->getPort(), $this->getConfig()->getNetworkSettings()->getMaxMtu());
 		$this->interface->setName($this->getMotd(), $this->getSubMotd());
@@ -167,7 +171,7 @@ class ProxyServer {
 
 		$this->logger->info("Proxy started! (" . round(microtime(true) - $startTime, 3) ."s)");
 
-		$loop = new ProxyLoop($this, $this->config);
+		$loop = new ProxyLoop($this);
 		$loop->run();
 	}
 
