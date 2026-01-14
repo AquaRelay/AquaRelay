@@ -1,0 +1,51 @@
+name: AquaRelay post-release
+
+on:
+  repository_dispatch:
+    types: aquarelay_post_release
+
+jobs:
+  post-release:
+    name: Update AquaRelay version post-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate access token
+        id: token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.RESTRICTED_ACTIONS_APP_ID }}
+          private-key: ${{ secrets.RESTRICTED_ACTIONS_APP_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: AquaRelay
+
+      - name: Checkout AquaRelay
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/AquaRelay
+          fetch-depth: 0
+          token: ${{ steps.token.outputs.token }}
+          ref: ${{ github.event.client_payload.branch }}
+          path: aquarelay
+
+      - name: Get GitHub App User ID
+        id: get-user-id
+        run: echo "user-id=$(gh api "/users/${{ steps.token.outputs.app-slug }}[bot]" --jq .id)" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+
+      - name: Set Git config
+        working-directory: aquarelay
+        run: |
+          git config user.name '${{ steps.token.outputs.app-slug }}[bot]'
+          git config user.email '${{ steps.get-user-id.outputs.user-id }}+${{ steps.token.outputs.app-slug }}[bot]@users.noreply.github.com'
+
+      - name: Run version bump script
+        working-directory: aquarelay
+        run: |
+          "${{ github.workspace }}/.github/workflows/bump-version-post-release.sh" ./ \
+          "Commit created by: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Push changes
+        working-directory: aquarelay
+        run: git push
