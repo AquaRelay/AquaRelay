@@ -44,7 +44,8 @@ jobs:
       - name: Run version bump script
         working-directory: aquarelay
         run: |
-          "${{ github.workspace }}/.github/workflows/bump-version-post-release.sh" ./ \
+          chmod +x .github/scripts/bump-version-post-release.sh
+          .github/scripts/bump-version-post-release.sh ./ \
           "Commit created by: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Push changes
