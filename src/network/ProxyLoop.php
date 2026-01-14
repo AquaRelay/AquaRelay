@@ -61,7 +61,9 @@ class ProxyLoop {
 			$this->server,
 			NetworkSessionManager::getInstance(),
 			PacketPool::getInstance(),
-			new RakLibPacketSender($sessionId, $this->server->interface)
+			new RakLibPacketSender($sessionId, $this->server->interface),
+			$ip,
+			$port
 		);
 
 		$this->sessions[$sessionId] = $session;

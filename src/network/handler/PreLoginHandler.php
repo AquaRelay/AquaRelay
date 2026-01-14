@@ -23,14 +23,11 @@ declare(strict_types=1);
 
 namespace aquarelay\network\handler;
 
-use aquarelay\utils\JWTUtils;
-use pocketmine\network\mcpe\protocol\LoginPacket;
 use pocketmine\network\mcpe\protocol\NetworkSettingsPacket;
 use pocketmine\network\mcpe\protocol\PlayStatusPacket;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\RequestNetworkSettingsPacket;
 use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
-use pocketmine\network\mcpe\protocol\types\login\clientdata\ClientData;
 
 class PreLoginHandler extends PacketHandler {
 
@@ -49,36 +46,8 @@ class PreLoginHandler extends PacketHandler {
 		);
 		$this->session->sendDataPacket($pk, true);
 		$this->session->enableCompression();
+
+		$this->session->onNetworkSettingsSuccess();
 		return true;
 	}
-
-	public function handleLogin(LoginPacket $packet): bool {
-		$clientDataJwt = $packet->clientDataJwt;
-		try {
-			[, $clientDataClaims, ] = JWTUtils::getInstance()->parse($clientDataJwt);
-			$clientData = $this->defaultJsonMapper()->map($clientDataClaims, new ClientData());
-
-			$this->session->setUsername($clientData->ThirdPartyName);
-
-			$this->logger->info("Player login received: " . $this->session->getUsername());
-		} catch (\Exception $e) {
-			$this->session->disconnect("Login decode error: " . $e->getMessage());
-			return false;
-		}
-
-		$this->session->onClientLoginSuccess($packet);
-		return true;
-	}
-
-	private function defaultJsonMapper() : \JsonMapper{
-		$mapper = new \JsonMapper();
-		$mapper->bExceptionOnMissingData = true;
-		$mapper->undefinedPropertyHandler = fn(object $object, string $name, mixed $value) => $this->logger->warning(
-			"Unexpected JSON property for " . (new \ReflectionClass($object))->getShortName() . ": " . $name . " = " . var_export($value, return: true)
-		);
-		$mapper->bStrictObjectTypeChecking = true;
-		$mapper->bEnforceMapType = false;
-		return $mapper;
-	}
-
 }

@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace aquarelay\network;
 
 use aquarelay\network\compression\ZlibCompressor;
+use aquarelay\network\handler\LoginHandler;
 use aquarelay\network\handler\PacketHandler;
 use aquarelay\network\handler\PreLoginHandler;
 use aquarelay\ProxyServer;
@@ -34,7 +35,9 @@ use pmmp\encoding\ByteBufferReader;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\DisconnectPacket;
 use pocketmine\network\mcpe\protocol\LoginPacket;
+use pocketmine\network\mcpe\protocol\NetworkSettingsPacket;
 use pocketmine\network\mcpe\protocol\PacketPool;
+use pocketmine\network\mcpe\protocol\RequestNetworkSettingsPacket;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use raklib\generic\DisconnectReason;
@@ -54,7 +57,9 @@ class NetworkSession {
 		private ProxyServer $server,
 		private NetworkSessionManager $manager,
 		private PacketPool $packetPool,
-		private PacketSender $sender
+		private PacketSender $sender,
+		private string $ip,
+		private int $port
 	){
 		$this->manager->add($this);
 		$this->lastUsed = time();
@@ -91,18 +96,19 @@ class NetworkSession {
 	private function processSinglePacket(string $buffer) : void {
 		$packet = $this->packetPool->getPacket($buffer);
 		if($packet !== null){
-			$this->server->getLogger()->debug("Incoming packet: " . $packet->getName());
+			$this->debug("Incoming packet: " . $packet->getName());
 			$packet->decode(new ByteBufferReader($buffer));
 
 			if($this->handler !== null){
 				$packet->handle($this->handler);
 			}
 		} else {
-			$this->server->getLogger()->debug("Unknown packet ID: 0x" . dechex(ord($buffer[0])));
+			$this->debug("Unknown packet ID: 0x" . dechex(ord($buffer[0])));
 		}
 	}
 
 	public function sendDataPacket(ClientboundPacket $packet, bool $immediate = false) : void {
+		$this->debug("Sending packet: " . $packet->getName());
 		$writer = new ByteBufferWriter();
 
 		$packet->encode($writer);
@@ -150,8 +156,12 @@ class NetworkSession {
 		$this->sendDataPacket(DisconnectPacket::create(DisconnectReason::CLIENT_DISCONNECT, $reason, ""));
 	}
 
+	public function onNetworkSettingsSuccess(): void {
+		$this->setHandler(new LoginHandler($this, $this->server->getLogger()));
+	}
+
 	public function onClientLoginSuccess(LoginPacket $loginPacket): void {
-		$this->server->getLogger()->debug("Login handled. Transitioning to backend proxying...");
+		$this->debug("Transitioning to backend proxying...");
 		// TODO: Backend transitioning
 	}
 
@@ -194,5 +204,10 @@ class NetworkSession {
 			$this->handler = $handler;
 			$this->handler?->setUp();
 		}
+	}
+
+	private function debug(string $message) : void
+	{
+		$this->server->getLogger()->debug("[NetworkSession - $this->ip:$this->port]: $message");
 	}
 }

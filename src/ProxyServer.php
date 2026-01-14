@@ -147,7 +147,7 @@ class ProxyServer {
 		}
 		
 		$this->config = ProxyConfig::load($configFile);
-		$this->logger = new MainLogger("Main Thread", "proxy.log", $this->isDebug());
+		$this->logger = new MainLogger("Main Thread", $this->getConfig()->getMiscSettings()->getLogName(), $this->isDebug());
 
 		if (self::IS_DEVELOPMENT){
 			$this->logger->warning("You are using development build. Be careful, your progress may be lost in future.");
