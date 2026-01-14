@@ -1,6 +1,7 @@
 name: AquaRelay post-release
 
 on:
+  workflow_dispatch:
   repository_dispatch:
     types: aquarelay_post_release
 
