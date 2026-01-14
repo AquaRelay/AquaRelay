@@ -23,10 +23,8 @@ jobs:
       - name: Checkout AquaRelay
         uses: actions/checkout@v4
         with:
-          repository: ${{ github.repository_owner }}/AquaRelay
-          fetch-depth: 0
           token: ${{ steps.token.outputs.token }}
-          ref: ${{ github.event.client_payload.branch }}
+          ref: ${{ github.event.client_payload.branch || github.ref_name }}
           path: aquarelay
 
       - name: Get GitHub App User ID
@@ -42,12 +40,11 @@ jobs:
           git config user.email '${{ steps.get-user-id.outputs.user-id }}+${{ steps.token.outputs.app-slug }}[bot]@users.noreply.github.com'
 
       - name: Run version bump script
-        working-directory: aquarelay
         run: |
-          chmod +x .github/workflows/bump-version-post-release.sh
-          .github/workflows/bump-version-post-release.sh ./ \
+          chmod +x aquarelay/.github/scripts/bump-version-post-release.sh
+          aquarelay/.github/scripts/bump-version-post-release.sh aquarelay \
           "Commit created by: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-
+      
       - name: Push changes
         working-directory: aquarelay
         run: git push
