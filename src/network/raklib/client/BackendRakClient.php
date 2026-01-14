@@ -22,7 +22,9 @@
 namespace aquarelay\network\raklib\client;
 
 use aquarelay\network\raklib\RakLibInterface;
+use pocketmine\network\mcpe\protocol\DataPacket;
 use raklib\client\ClientSocket;
+use pmmp\encoding\ByteBufferWriter;
 use raklib\protocol\ConnectionRequest;
 use raklib\protocol\OpenConnectionRequest1;
 use raklib\protocol\OpenConnectionRequest2;
@@ -90,5 +92,12 @@ class BackendRakClient {
 
 	public function close() : void{
 		$this->socket->close();
+	}
+
+	public function sendGamePacket(DataPacket $packet) : void {
+		$writer = new ByteBufferWriter();
+		$packet->encode($writer);
+		$payload = RakLibInterface::MCPE_RAKNET_PACKET_ID . $writer->getData();
+		$this->sendRaw($payload);
 	}
 }

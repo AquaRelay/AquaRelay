@@ -27,6 +27,7 @@ use aquarelay\config\ProxyConfig;
 use aquarelay\network\compression\ZlibCompressor;
 use aquarelay\network\ProxyLoop;
 use aquarelay\network\raklib\RakLibInterface;
+use aquarelay\player\PlayerManager;
 use aquarelay\utils\Colors;
 use aquarelay\utils\MainLogger;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
@@ -40,6 +41,7 @@ class ProxyServer {
 	private MainLogger $logger;
 	private ProxyConfig $config;
 	private static ?self $instance = null;
+	private PlayerManager $playerManager;
 
 	/**
 	 * Returns a server instance, can be nullable
@@ -123,6 +125,11 @@ class ProxyServer {
 		return $this->resourcePath;
 	}
 
+	public function getPlayerManager() : PlayerManager
+	{
+		return $this->playerManager;
+	}
+
 	public function __construct(
 		private string $dataPath,
 		private string $resourcePath
@@ -157,6 +164,8 @@ class ProxyServer {
 
 		$this->logger->info("Starting " . $this->getName() . " version " . $this->getVersion());
 		$this->logger->info("This server is running Minecraft: Bedrock Edition " . Colors::BLUE . "v" . $this->getMinecraftVersion());
+
+		$this->playerManager = new PlayerManager();
 
 		ZlibCompressor::setInstance(new ZlibCompressor(ZlibCompressor::DEFAULT_LEVEL, ZlibCompressor::DEFAULT_THRESHOLD, ZlibCompressor::DEFAULT_MAX_DECOMPRESSION_SIZE));
 		$this->logger->debug("ZLib compressor initialized");

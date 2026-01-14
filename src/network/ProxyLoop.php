@@ -50,8 +50,15 @@ class ProxyLoop {
 		}
 	}
 
-	private function tick() : void{
+	private function tick() : void {
 		$this->server->interface->process();
+
+		foreach($this->sessions as $session) {
+			$player = $session->getPlayer();
+			if($player !== null && $player->getDownstream() !== null) {
+				$player->getDownstream()->tick(function($payload) use ($player) {});
+			}
+		}
 	}
 
 	private function handleConnect(int $sessionId, string $ip, int $port): void {

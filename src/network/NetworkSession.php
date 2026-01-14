@@ -27,6 +27,9 @@ use aquarelay\network\compression\ZlibCompressor;
 use aquarelay\network\handler\LoginHandler;
 use aquarelay\network\handler\PacketHandler;
 use aquarelay\network\handler\PreLoginHandler;
+use aquarelay\network\handler\ResourcePackHandler;
+use aquarelay\network\raklib\client\BackendRakClient;
+use aquarelay\player\Player;
 use aquarelay\ProxyServer;
 use pmmp\encoding\ByteBuffer;
 use pmmp\encoding\ByteBufferWriter;
@@ -35,12 +38,14 @@ use pmmp\encoding\ByteBufferReader;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\DisconnectPacket;
 use pocketmine\network\mcpe\protocol\LoginPacket;
-use pocketmine\network\mcpe\protocol\NetworkSettingsPacket;
 use pocketmine\network\mcpe\protocol\PacketPool;
-use pocketmine\network\mcpe\protocol\RequestNetworkSettingsPacket;
+use pocketmine\network\mcpe\protocol\PlayStatusPacket;
+use pocketmine\network\mcpe\protocol\ResourcePacksInfoPacket;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use raklib\generic\DisconnectReason;
+use raklib\utils\InternetAddress;
+use Ramsey\Uuid\Uuid;
 
 class NetworkSession {
 	/** @var string[] */
@@ -52,6 +57,7 @@ class NetworkSession {
 	private bool $connected = true;
 	private bool $logged = false;
 	private ?PacketHandler $handler;
+	private ?Player $player = null;
 
 	public function __construct(
 		private ProxyServer $server,
@@ -161,8 +167,58 @@ class NetworkSession {
 	}
 
 	public function onClientLoginSuccess(LoginPacket $loginPacket): void {
-		$this->debug("Transitioning to backend proxying...");
-		// TODO: Backend transitioning
+		$this->debug("Login handled. Starting Resource Pack sequence...");
+
+		$this->sendDataPacket(PlayStatusPacket::create(PlayStatusPacket::LOGIN_SUCCESS));
+
+		$infoPacket = ResourcePacksInfoPacket::create(
+			[],
+			false,
+			false,
+			false,
+			Uuid::fromString(Uuid::NIL),
+			"0.0.0",
+			false,
+		);
+
+		$this->sendDataPacket($infoPacket, true);
+
+		$this->setHandler(new ResourcePackHandler($this, $this->server->getLogger()));
+	}
+
+	public function connectToBackend(): void {
+		$player = $this->player;
+		if($player === null) return;
+
+		$targetIp = $this->server->getConfig()->getNetworkSettings()->getBackendAddress();
+		$targetPort = $this->server->getConfig()->getNetworkSettings()->getBackendPort();
+
+		$backend = new BackendRakClient(new InternetAddress($targetIp, $targetPort, 4));
+		$player->setDownstream($backend);
+
+		$backend->connect();
+
+		$backend->tick(function(string $payload) use ($player) {
+			if (ord($payload[0]) === 0xfe) {
+				$packetData = substr($payload, 1);
+				$packet = $this->packetPool->getPacket($packetData);
+				if ($packet !== null) {
+					$packet->decode(new ByteBufferReader($packetData));
+
+					$player->handleBackendPacket($packet);
+				}
+			}
+		});
+
+		$player->sendLoginToBackend();
+	}
+
+	public function setPlayer(Player $player): void {
+		$this->player = $player;
+	}
+
+	public function getPlayer(): ?Player {
+		return $this->player;
 	}
 
 	public function getPing() : int
@@ -206,7 +262,7 @@ class NetworkSession {
 		}
 	}
 
-	private function debug(string $message) : void
+	public function debug(string $message) : void
 	{
 		$this->server->getLogger()->debug("[NetworkSession - $this->ip:$this->port]: $message");
 	}

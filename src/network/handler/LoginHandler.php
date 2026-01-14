@@ -23,19 +23,32 @@ declare(strict_types=1);
 
 namespace aquarelay\network\handler;
 
+use aquarelay\ProxyServer;
 use aquarelay\utils\JWTUtils;
+use aquarelay\utils\LoginData;
 use pocketmine\network\mcpe\protocol\LoginPacket;
 use pocketmine\network\mcpe\protocol\types\login\clientdata\ClientData;
 
 class LoginHandler extends PacketHandler {
 
 	public function handleLogin(LoginPacket $packet): bool {
-		$clientDataJwt = $packet->clientDataJwt;
 		try {
-			[, $clientDataClaims, ] = JWTUtils::getInstance()->parse($clientDataJwt);
+			[, $clientDataClaims, ] = JWTUtils::getInstance()->parse($packet->clientDataJwt);
 			$clientData = $this->defaultJsonMapper()->map($clientDataClaims, new ClientData());
 
+			$loginData = new LoginData(
+				username: $clientData->ThirdPartyName,
+				clientUuid: (string) $clientData->ClientRandomId,
+				xuid: $clientData->SelfSignedId,
+				chainData: json_decode($packet->authInfoJson, true),
+				clientData: $packet->clientDataJwt,
+				protocolVersion: $packet->protocol
+			);
+
 			$this->session->setUsername($clientData->ThirdPartyName);
+
+			$player = ProxyServer::getInstance()->getPlayerManager()->createPlayer($this->session, $loginData);
+			$this->session->setPlayer($player);
 
 			$this->logger->info("Player login received: " . $this->session->getUsername());
 		} catch (\Exception $e) {
