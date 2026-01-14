@@ -1,46 +1,44 @@
 #!/usr/bin/env bash
 set -e
 
-function bump_version() {
-	BASE_VERSION="$1"
+bump_version() {
+	local v="$1"
 
-	if [[ "$BASE_VERSION" == *"-"* ]]; then
-		major_minor_patch="${BASE_VERSION%%-*}"
-		suffix="${BASE_VERSION##*-}"
+	if [[ "$v" == *"-"* ]]; then
+		base="${v%%-*}"
+		suffix="${v##*-}"
 
 		if [[ "$suffix" =~ ^([a-zA-Z]+)([0-9]*)$ ]]; then
 			type="${BASH_REMATCH[1]}"
 			num="${BASH_REMATCH[2]}"
 
 			if [[ -z "$num" ]]; then
-				echo "$major_minor_patch-$type1"
+				echo "$base-$type1"
 			else
-				echo "$major_minor_patch-$type$((num+1))"
+				echo "$base-$type$((num+1))"
 			fi
 		else
-			echo "error: unknown suffix format: $suffix"
+			echo "error: unknown suffix: $suffix"
 			exit 1
 		fi
 	else
-		IFS='.' read -r major minor patch <<< "$BASE_VERSION"
-		echo "$major.$minor.$((patch+1))"
+		IFS='.' read -r a b c <<< "$v"
+		echo "$a.$b.$((c+1))"
 	fi
 }
 
 cd "$1"
 additional_info="$2"
 
-version_regex='(public const VERSION = ")([^"]+)(";)'
-
-BASE_VERSION="$(sed -nE "s/.*$version_regex.*/\2/p" "./src/ProxyServer.php")"
+BASE_VERSION="$(sed -nE 's/.*public const VERSION = "([^"]+)".*/\1/p' ./src/ProxyServer.php)"
 
 if [[ -z "$BASE_VERSION" ]]; then
-	echo "error: VERSION not found in ProxyServer.php"
+	echo "error: VERSION not found"
 	exit 1
 fi
 
 NEW_VERSION="$(bump_version "$BASE_VERSION")"
 
-sed -i -E "s/$version_regex/\1$NEW_VERSION\3/" "./src/ProxyServer.php"
+sed -i -E "s|public const VERSION = \"[^\"]+\"|public const VERSION = \"$NEW_VERSION\"|" ./src/ProxyServer.php
 
-git commit -m "Next: $NEW_VERSION" -m "$additional_info" --only "./src/ProxyServer.php"
+git commit -m "Next: $NEW_VERSION" -m "$additional_info" --only ./src/ProxyServer.php
