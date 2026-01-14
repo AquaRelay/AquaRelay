@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -ex
 
 bump_version() {
 	local v="$1"
@@ -13,7 +13,7 @@ bump_version() {
 			num="${BASH_REMATCH[2]}"
 
 			if [[ -z "$num" ]]; then
-				echo "$base-$type1"
+				echo "$base-${type}1"
 			else
 				echo "$base-$type$((num+1))"
 			fi
@@ -32,10 +32,7 @@ additional_info="$2"
 
 BASE_VERSION="$(sed -nE 's/.*public const VERSION = "([^"]+)".*/\1/p' ./src/ProxyServer.php)"
 
-if [[ -z "$BASE_VERSION" ]]; then
-	echo "error: VERSION not found"
-	exit 1
-fi
+echo "BASE_VERSION=$BASE_VERSION"
 
 NEW_VERSION="$(bump_version "$BASE_VERSION")"
 
