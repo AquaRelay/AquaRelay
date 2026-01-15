@@ -1,5 +1,8 @@
 name: Draft release
 
+permissions:
+  contents: write
+
 on:
   pull_request_target:
     types: [closed]
