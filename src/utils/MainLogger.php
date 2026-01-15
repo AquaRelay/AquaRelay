@@ -29,7 +29,7 @@ use pmmp\thread\ThreadSafe;
 class MainLogger extends ThreadSafe implements \Logger
 {
 
-	private string $format = Colors::BLUE . "%s " . Colors::RESET . "[%s] [%s%s" . Colors::RESET . "]" . Colors::WHITE . " %s" . Colors::RESET;
+	private string $format = Colors::AQUA . "%s " . Colors::RESET . "[%s] [%s%s" . Colors::RESET . "]" . Colors::WHITE . " %s" . Colors::RESET;
 	private MainLoggerThread $writerThread;
 
 	public function __construct(private string $mainThreadName, string $logFile = "proxy.log", private bool $debugMode = false) {

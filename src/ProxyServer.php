@@ -168,7 +168,7 @@ class ProxyServer {
 		$this->logger->info("Loading server configuration");
 
 		$this->logger->info("Starting " . $this->getName() . " version " . $this->getVersion());
-		$this->logger->info("This server is running Minecraft: Bedrock Edition " . Colors::BLUE . "v" . $this->getMinecraftVersion());
+		$this->logger->info("This server is running Minecraft: Bedrock Edition " . Colors::AQUA . "v" . $this->getMinecraftVersion());
 
 		$this->playerManager = new PlayerManager();
 

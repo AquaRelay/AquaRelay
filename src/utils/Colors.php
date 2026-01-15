@@ -27,12 +27,12 @@ class Colors {
 
     public const RESET = "\033[0m";
     public const BLACK = "\033[30m";
+	public const AQUA = "\033[36m";
     public const RED = "\033[31m";
     public const GREEN = "\033[32m";
     public const YELLOW = "\033[33m";
     public const BLUE = "\033[34m";
     public const PURPLE = "\033[35m";
-    public const CYAN = "\033[36m";
     public const WHITE = "\033[37m";
     public const GRAY = "\033[90m";
     public const DARK_RED = "\033[91m";
