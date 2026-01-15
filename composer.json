@@ -25,7 +25,16 @@
 	"autoload": {
 		"psr-4": {
 			"aquarelay\\": "src/"
-		}
+		},
+		"files": [
+			"src/CoreConstants.php"
+		]
+	},
+	"scripts": {
+		"build": [
+			"@composer install --no-dev --classmap-authoritative --ignore-platform-reqs",
+			"@php -dphar.readonly=0 scripts/build.php"
+		]
 	},
 	"minimum-stability": "stable",
 	"prefer-stable": true

@@ -74,12 +74,12 @@ function start() : void
 	error_reporting(E_ALL);
 	date_default_timezone_set("UTC");
 
-	define("BASE_PATH", dirname(__DIR__));
-	define("RESOURCE_PATH", BASE_PATH . "/resources");
+	$cwd = realpath(getcwd());
+	$dataPath = $cwd . DIRECTORY_SEPARATOR;
 
 	try {
 		new ProxyServer(
-			BASE_PATH,
+			$dataPath,
 			RESOURCE_PATH
 		);
 	} catch(Throwable $e) {
