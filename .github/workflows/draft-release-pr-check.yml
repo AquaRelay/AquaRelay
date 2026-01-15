@@ -1,0 +1,43 @@
+name: Release PR checks
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - "src/ProxyServer.php"
+
+  workflow_call:
+    outputs:
+      valid:
+        description: Whether this commit is valid for release
+        value: ${{ jobs.check-intent.outputs.valid }}
+
+permissions:
+  contents: read
+
+jobs:
+  check-intent:
+    name: Check release intent
+    runs-on: ubuntu-22.04
+
+    outputs:
+      valid: ${{ steps.validate.outputs.IS_DEV == 'false' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.2
+
+      - name: Install Composer dependencies
+        run: composer install --no-dev --prefer-dist --no-interaction --ignore-platform-reqs
+
+      - name: Check development build flag
+        id: validate
+        run: |
+          IS_DEV=$(php tools/dump-version.php is_dev)
+          echo "IS_DEV=$IS_DEV"
+          echo IS_DEV=$IS_DEV >> $GITHUB_OUTPUT

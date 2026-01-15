@@ -1,0 +1,128 @@
+name: Draft release
+
+on:
+  pull_request_target:
+    types: [closed]
+    branches:
+      - master
+    paths:
+      - "src/ProxyServer.php"
+
+  push:
+    tags:
+      - "*"
+
+env:
+  PHP_VERSION: "8.2"
+
+jobs:
+  skip:
+    name: Check whether to ignore this tag
+    runs-on: ubuntu-22.04
+
+    outputs:
+      skip: ${{ steps.exists.outputs.exists == 'true' }}
+
+    steps:
+      - name: Check if release already exists
+        id: exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          exists=false
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+            if gh release view "$tag" --repo "${{ github.repository }}"; then
+              exists=true
+            fi
+          fi
+          echo exists=$exists >> $GITHUB_OUTPUT
+
+  check:
+    needs: [skip]
+    if: needs.skip.outputs.skip != 'true'
+    name: Check release
+    uses: ./.github/workflows/draft-release-pr-check.yml
+
+  draft:
+    name: Create AquaRelay draft release
+    needs: [check]
+    if: needs.check.outputs.valid == 'true' || github.ref_type == 'tag'
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+
+      - name: Install Composer dependencies
+        run: composer install --no-dev --prefer-dist --no-interaction --ignore-platform-reqs
+
+      - name: Calculate build number
+        id: build
+        run: |
+          BUILD_NUMBER=$((1000 + GITHUB_RUN_NUMBER))
+          echo BUILD_NUMBER=$BUILD_NUMBER >> $GITHUB_OUTPUT
+
+      - name: Build AquaRelay.phar
+        run: php -dphar.readonly=0 scripts/build.php \
+          --build ${{ steps.build.outputs.BUILD_NUMBER }}
+
+      - name: Get AquaRelay version
+        id: version
+        run: |
+          echo VERSION=$(php tools/dump-version.php version) >> $GITHUB_OUTPUT
+          echo IS_DEV=$(php tools/dump-version.php is_dev) >> $GITHUB_OUTPUT
+          echo MCPE_VERSION=$(php tools/dump-version.php mcpe_version) >> $GITHUB_OUTPUT
+
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo TAG=${GITHUB_REF#refs/tags/} >> $GITHUB_OUTPUT
+          else
+            echo TAG=$(php tools/dump-version.php version) >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: aquarelay-release
+          path: |
+            AquaRelay.phar
+
+      - name: Normalize prerelease flag
+        id: prerelease
+        run: |
+          if [[ "${{ steps.version.outputs.IS_DEV }}" == "true" ]]; then
+           echo PRERELEASE=true >> $GITHUB_OUTPUT
+         else
+           echo PRERELEASE=false >> $GITHUB_OUTPUT
+         fi
+
+      - name: Create draft release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: AquaRelay.phar
+          commit: ${{ github.sha }}
+          draft: true
+          prerelease: ${{ steps.prerelease.outputs.PRERELEASE }}
+          tag: ${{ steps.version.outputs.TAG }}
+          name: AquaRelay ${{ steps.version.outputs.VERSION }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            **For Minecraft: Bedrock Edition ${{ steps.version.outputs.MCPE_VERSION }}**
+            
+            Changelogs:
+            https://github.com/AquaRelay/AquaRelay/blob/master/changelogs/${{ steps.version.outputs.VERSION }}.md
+            
+            :information_source: Startup scripts:
+            https://github.com/AquaRelay/scripts/releases
+        
+            :information_source: Recommended PHP binary:
+            https://github.com/pmmp/PHP-Binaries/releases
+
+            :warning: Found a bug?
+            https://github.com/AquaRelay/AquaRelay/issues
