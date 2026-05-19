@@ -137,7 +137,7 @@ final class BackendRakClient extends Session
 				}
 			}
 			$this->update(microtime(true));
-		} catch (SocketException $e) {
+		} catch (SocketException|\ValueError $e) {
 			$this->getLogger()->debug("Backend packet reading error: " . $e->getMessage());
 			$this->player->disconnect(TranslationFactory::translate("proxy.backend.read_error", [Uuid::uuid4()->toString()]));
 
