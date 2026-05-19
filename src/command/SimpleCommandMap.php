@@ -29,6 +29,7 @@ use aquarelay\command\default\ProxyPluginsCommand;
 use aquarelay\command\default\ProxyStopCommand;
 use aquarelay\command\default\ProxyTransferCommand;
 use aquarelay\command\sender\CommandSender;
+use aquarelay\command\utils\CommandStringHelper;
 use function array_shift;
 use function explode;
 use function str_starts_with;
@@ -73,7 +74,7 @@ class SimpleCommandMap implements CommandMap {
 
 	public function dispatch(CommandSender $sender, string $line) : bool
 	{
-		$args = explode(" ", trim($line));
+		$args = CommandStringHelper::parseQuoteAware($line);
 		$label = array_shift($args);
 
 		if ($label === null) {
