@@ -30,6 +30,7 @@ use aquarelay\server\BackendServer;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\NetworkChunkPublisherUpdatePacket;
 use pocketmine\network\mcpe\protocol\PlayStatusPacket;
+use pocketmine\network\mcpe\protocol\RequestChunkRadiusPacket;
 use pocketmine\network\mcpe\protocol\SetLocalPlayerAsInitializedPacket;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 
@@ -77,18 +78,7 @@ class TransferCallback
 			$rewriteData->entityId
 		);
 
-		$rewriteData->dimension = PlayerRewriteUtils::determineDimensionId(
-			$rewriteData->dimension,
-			$this->targetDimension
-		);
-
-		PlayerRewriteUtils::injectDimensionChange(
-			$session,
-			$rewriteData->dimension,
-			$spawnPos,
-			$rewriteData->entityId,
-			true
-		);
+		$rewriteData->dimension = $this->targetDimension;
 
 		return true;
 	}
@@ -96,45 +86,76 @@ class TransferCallback
 	private function handlePhase2() : bool
 	{
 		$this->phase = self::PHASE_RESET;
+
 		$rewriteData = $this->player->getRewriteData();
 		$session = $this->player->getNetworkSession();
 
 		$rewriteData->transferCallback = null;
+		$rewriteData->postTransferSpawnInitialized = false;
 
 		PlayerRewriteUtils::injectStopSound($session);
 
 		$spawnPos = $rewriteData->spawnPosition ?? new Vector3(0, 64, 0);
-		PlayerRewriteUtils::injectDimensionChange(
-			$session,
-			$this->targetDimension,
-			$spawnPos,
-			$rewriteData->entityId,
-			false
+
+		$session->getLogger()->debug(
+			"TransferCallback PHASE_2: " .
+			"clientRuntimeId={$rewriteData->entityId}, " .
+			"backendRuntimeId={$rewriteData->originalEntityId}, " .
+			"targetDimension={$this->targetDimension}, " .
+			"spawn={$spawnPos->x},{$spawnPos->y},{$spawnPos->z}, " .
+			"pitch={$rewriteData->pitch}, yaw={$rewriteData->yaw}"
 		);
 
+		// secure mode
 		$rewriteData->dimension = $this->targetDimension;
 
-		$session->sendDataPacket(PlayStatusPacket::create(PlayStatusPacket::PLAYER_SPAWN));
-
-		$publisherPk = NetworkChunkPublisherUpdatePacket::create(
-			new BlockPosition((int)$spawnPos->x, (int)$spawnPos->y, (int)$spawnPos->z),
-			8 * 16,
-			[]
+		PlayerRewriteUtils::injectPosition(
+			$session,
+			$spawnPos,
+			$rewriteData->pitch,
+			$rewriteData->yaw,
+			$rewriteData->entityId
 		);
-		$session->sendDataPacket($publisherPk);
 
 		$downstream = $this->player->getDownstream();
+
 		if ($downstream === null || !$downstream->isConnected()) {
 			$this->onTransferFailed();
 			return true;
 		}
-
 		$downstream->sendGamePacket(SetLocalPlayerAsInitializedPacket::create($rewriteData->originalEntityId));
+
+		$session->getLogger()->debug(
+			"Sent manual SetLocalPlayerAsInitialized to backend with runtimeId={$rewriteData->originalEntityId}"
+		);
 
 		$this->player->setHandler(new DownstreamInGameHandler(
 			$this->player,
 			$this->player->getServer()->getLogger()
 		));
+
+		$this->player->getServer()->getScheduler()->scheduleDelayed(function () use ($session, $downstream, $spawnPos) : void {
+			if (!$session->isConnected() || !$downstream->isConnected()) {
+				return;
+			}
+
+			$session->getLogger()->debug(
+				"Requesting chunks from backend after manual init: " .
+				"radius=8, spawn={$spawnPos->x},{$spawnPos->y},{$spawnPos->z}"
+			);
+
+			$session->sendDataPacket(NetworkChunkPublisherUpdatePacket::create(
+				new BlockPosition((int)$spawnPos->x, (int)$spawnPos->y, (int)$spawnPos->z),
+				8 * 16,
+				[]
+			));
+
+			$chunkRadiusPacket = new RequestChunkRadiusPacket();
+			$chunkRadiusPacket->radius = 8;
+			$chunkRadiusPacket->maxRadius = 8;
+
+			$downstream->sendGamePacket($chunkRadiusPacket);
+		}, 10);
 
 		$session->getLogger()->debug('Transfer completed successfully');
 

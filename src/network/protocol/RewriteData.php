@@ -52,4 +52,6 @@ class RewriteData
 	public ?TransferCallback $transferCallback = null;
 
 	public bool $immobileFlag = false;
+
+	public bool $postTransferSpawnInitialized = false;
 }

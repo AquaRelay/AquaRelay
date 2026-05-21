@@ -25,10 +25,17 @@ declare(strict_types=1);
 namespace aquarelay\network\handler\upstream;
 
 use aquarelay\event\default\player\PlayerChatEvent;
+use pocketmine\network\mcpe\protocol\AnimatePacket;
 use pocketmine\network\mcpe\protocol\ClientCacheStatusPacket;
 use pocketmine\network\mcpe\protocol\CommandRequestPacket;
+use pocketmine\network\mcpe\protocol\InteractPacket;
+use pocketmine\network\mcpe\protocol\InventoryTransactionPacket;
+use pocketmine\network\mcpe\protocol\MobEquipmentPacket;
 use pocketmine\network\mcpe\protocol\ModalFormResponsePacket;
+use pocketmine\network\mcpe\protocol\MovePlayerPacket;
 use pocketmine\network\mcpe\protocol\PlayerActionPacket;
+use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
+use pocketmine\network\mcpe\protocol\SetLocalPlayerAsInitializedPacket;
 use pocketmine\network\mcpe\protocol\TextPacket;
 use pocketmine\network\mcpe\protocol\TransferPacket;
 use pocketmine\network\mcpe\protocol\types\PlayerAction;
@@ -42,9 +49,62 @@ use function trim;
 
 class UpstreamInGameHandler extends AbstractUpstreamPacketHandler
 {
+	private function rewriteClientRuntimeId(int $runtimeId, string $packetName = "unknown") : int
+	{
+		$player = $this->session->getPlayer();
+
+		if ($player === null) {
+			return $runtimeId;
+		}
+
+		$rewriteData = $player->getRewriteData();
+		$backendRuntimeId = $rewriteData->originalEntityId;
+		$clientRuntimeId = $rewriteData->entityId;
+
+		if ($clientRuntimeId !== 0 && $backendRuntimeId !== 0 && $runtimeId === $clientRuntimeId && $clientRuntimeId !== $backendRuntimeId) {
+			$this->session->getLogger()->debug(
+				"Upstream RuntimeId rewrite in {$packetName}: client={$clientRuntimeId} -> backend={$backendRuntimeId}"
+			);
+
+			return $backendRuntimeId;
+		}
+
+		return $runtimeId;
+	}
+
 	public function shouldForwardUnhandled() : bool
 	{
 		return true;
+	}
+
+	public function handleMovePlayer(MovePlayerPacket $packet) : bool
+	{
+		$packet->actorRuntimeId = $this->rewriteClientRuntimeId($packet->actorRuntimeId, "MovePlayerPacket");
+		return false;
+	}
+
+	public function handleAnimate(AnimatePacket $packet) : bool
+	{
+		$packet->actorRuntimeId = $this->rewriteClientRuntimeId($packet->actorRuntimeId, "AnimatePacket");
+		return false;
+	}
+
+	public function handleMobEquipment(MobEquipmentPacket $packet) : bool
+	{
+		$packet->actorRuntimeId = $this->rewriteClientRuntimeId($packet->actorRuntimeId, "MobEquipmentPacket");
+		return false;
+	}
+
+	public function handleSetLocalPlayerAsInitialized(SetLocalPlayerAsInitializedPacket $packet) : bool
+	{
+		$packet->actorRuntimeId = $this->rewriteClientRuntimeId($packet->actorRuntimeId, "SetLocalPlayerAsInitializedPacket");
+		return false;
+	}
+
+	public function handleInteract(InteractPacket $packet) : bool
+	{
+		$packet->targetActorRuntimeId = $this->rewriteClientRuntimeId($packet->targetActorRuntimeId, "InteractPacket");
+		return false;
 	}
 
 	public function handleText(TextPacket $packet) : bool
@@ -57,6 +117,16 @@ class UpstreamInGameHandler extends AbstractUpstreamPacketHandler
 		if ($event->isCancelled()) {
 			return true;
 		}
+		return false;
+	}
+
+	public function handlePlayerAuthInput(PlayerAuthInputPacket $packet) : bool
+	{
+		return false;
+	}
+
+	public function handleInventoryTransaction(InventoryTransactionPacket $packet) : bool
+	{
 		return false;
 	}
 
@@ -106,10 +176,12 @@ class UpstreamInGameHandler extends AbstractUpstreamPacketHandler
 	{
 		if ($packet->action === PlayerAction::DIMENSION_CHANGE_ACK) {
 			$rewriteData = $this->session->getPlayer()->getRewriteData();
+
 			if ($rewriteData->transferCallback !== null) {
 				return $rewriteData->transferCallback->onDimChangeSuccess();
 			}
 		}
+		$packet->actorRuntimeId = $this->rewriteClientRuntimeId($packet->actorRuntimeId, "PlayerActionPacket");
 		return false;
 	}
 

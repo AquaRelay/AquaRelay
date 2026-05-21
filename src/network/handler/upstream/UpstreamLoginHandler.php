@@ -54,6 +54,7 @@ use const JSON_THROW_ON_ERROR;
 
 class UpstreamLoginHandler extends AbstractUpstreamPacketHandler
 {
+
 	public function handleLogin(LoginPacket $packet) : bool
 	{
 		if ($this->session->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_93) {
@@ -86,7 +87,7 @@ class UpstreamLoginHandler extends AbstractUpstreamPacketHandler
 				$this->session->setUsername($clientData->xname);
 				$this->session->getLogger()->setPrefix("NetworkSession: " . $this->session->getDisplayName());
 
-				$player = ProxyServer::getInstance()->getPlayerManager()->createPlayer($this->session, $loginData);
+				$player = ProxyServer::getInstance()->getPlayerManager()->createPlayer($this->session, $loginData, $packet);
 				$this->session->setPlayer($player);
 
 			} catch (\Exception $e) {
@@ -179,7 +180,7 @@ class UpstreamLoginHandler extends AbstractUpstreamPacketHandler
 			$this->session->getLogger()->info("Player: " . Colors::AQUA . $username);
 			$this->session->setUsername($username);
 			$this->session->getLogger()->setPrefix("NetworkSession: " . $this->session->getDisplayName());
-			$player = ProxyServer::getInstance()->getPlayerManager()->createPlayer($this->session, $loginData);
+			$player = ProxyServer::getInstance()->getPlayerManager()->createPlayer($this->session, $loginData, $packet);
 			$this->session->setPlayer($player);
 		}
 

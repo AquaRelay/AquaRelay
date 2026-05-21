@@ -32,6 +32,7 @@ use aquarelay\player\Player;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\ByteBufferReader;
 use pocketmine\network\mcpe\protocol\DataPacket;
+use pocketmine\network\mcpe\protocol\NetworkSettingsPacket;
 use pocketmine\network\mcpe\protocol\PacketPool;
 use pocketmine\network\mcpe\protocol\RequestNetworkSettingsPacket;
 use pocketmine\utils\Binary;
@@ -190,13 +191,29 @@ final class BackendRakClient extends Session
 		$id = ord($packet[0]);
 		if ($id === RakLibInterface::MCPE_RAKNET_PACKET_ID_BYTE) {
 			if ($this->connState === ConnectionState::GAME_HANDSHAKE) {
-				$this->connState = ConnectionState::LOGGED_IN;
-				$this->compressionEnabled = true;
+				foreach (PacketBatchDecoder::decodeRaw($packet, $this->getLogger(), false) as $buffer) {
+					$pk = PacketPool::getInstance()->getPacket($buffer);
+					if ($pk instanceof DataPacket) {
+						$pk->decode(new ByteBufferReader($buffer), $this->player->getProtocol());
+						if ($pk instanceof NetworkSettingsPacket) {
+							$this->compressionEnabled = true;
+							$this->connState = ConnectionState::LOGGED_IN;
 
-				foreach ($this->sendQueue as $p) {
-					$this->encodeAndSend($p);
+							$this->encodeAndSend($this->player->getLoginPacket());
+
+							foreach ($this->sendQueue as $p) {
+								$this->encodeAndSend($p);
+							}
+
+							$this->sendQueue = [];
+							return;
+						}
+
+						$this->player->handleBackendPacket($pk);
+					}
 				}
-				$this->sendQueue = [];
+
+				return;
 			}
 
 			foreach (PacketBatchDecoder::decodeRaw($packet, $this->getLogger(), $this->compressionEnabled) as $buffer) {

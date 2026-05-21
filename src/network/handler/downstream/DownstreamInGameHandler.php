@@ -27,9 +27,14 @@ namespace aquarelay\network\handler\downstream;
 use aquarelay\event\default\player\PlayerJoinEvent;
 use pocketmine\network\mcpe\protocol\AddActorPacket;
 use pocketmine\network\mcpe\protocol\AddPlayerPacket;
+use pocketmine\network\mcpe\protocol\AnimatePacket;
 use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
 use pocketmine\network\mcpe\protocol\BossEventPacket;
 use pocketmine\network\mcpe\protocol\DisconnectPacket;
+use pocketmine\network\mcpe\protocol\LevelChunkPacket;
+use pocketmine\network\mcpe\protocol\MobEffectPacket;
+use pocketmine\network\mcpe\protocol\MovePlayerPacket;
+use pocketmine\network\mcpe\protocol\NetworkChunkPublisherUpdatePacket;
 use pocketmine\network\mcpe\protocol\PlayerListPacket;
 use pocketmine\network\mcpe\protocol\PlayStatusPacket;
 use pocketmine\network\mcpe\protocol\RemoveActorPacket;
@@ -37,7 +42,10 @@ use pocketmine\network\mcpe\protocol\RemoveObjectivePacket;
 use pocketmine\network\mcpe\protocol\RequestChunkRadiusPacket;
 use pocketmine\network\mcpe\protocol\serializer\AvailableCommandsPacketAssembler;
 use pocketmine\network\mcpe\protocol\serializer\AvailableCommandsPacketDisassembler;
+use pocketmine\network\mcpe\protocol\SetActorDataPacket;
+use pocketmine\network\mcpe\protocol\SetActorMotionPacket;
 use pocketmine\network\mcpe\protocol\SetDisplayObjectivePacket;
+use pocketmine\network\mcpe\protocol\SetLocalPlayerAsInitializedPacket;
 use pocketmine\network\mcpe\protocol\StartGamePacket;
 use pocketmine\network\mcpe\protocol\TransferPacket;
 use pocketmine\network\mcpe\protocol\types\command\CommandData;
@@ -45,6 +53,7 @@ use pocketmine\network\mcpe\protocol\types\command\CommandHardEnum;
 use pocketmine\network\mcpe\protocol\types\command\CommandOverload;
 use pocketmine\network\mcpe\protocol\types\command\CommandParameter;
 use pocketmine\network\mcpe\protocol\types\command\CommandPermissions;
+use pocketmine\network\mcpe\protocol\UpdateAttributesPacket;
 use function array_map;
 use function in_array;
 use function strtolower;
@@ -52,6 +61,113 @@ use function ucfirst;
 
 class DownstreamInGameHandler extends AbstractDownstreamPacketHandler
 {
+
+	private function sendPostTransferSpawnInitialized() : void
+	{
+		$player = $this->getPlayer();
+		$rewriteData = $player->getRewriteData();
+		$downstream = $player->getDownstream();
+
+		if ($downstream === null || !$downstream->isConnected()) {
+			return;
+		}
+
+		if ($rewriteData->postTransferSpawnInitialized) {
+			return;
+		}
+
+		$rewriteData->postTransferSpawnInitialized = true;
+
+		$player->getNetworkSession()->getLogger()->debug(
+			"Sending post-transfer SetLocalPlayerAsInitialized to backend with runtimeId={$rewriteData->originalEntityId}"
+		);
+
+		$downstream->sendGamePacket(SetLocalPlayerAsInitializedPacket::create($rewriteData->originalEntityId));
+
+		$chunkRadiusPacket = new RequestChunkRadiusPacket();
+		$chunkRadiusPacket->radius = 8;
+		$chunkRadiusPacket->maxRadius = 8;
+
+		$downstream->sendGamePacket($chunkRadiusPacket);
+	}
+
+	private function rewriteLocalRuntimeId(int $runtimeId, string $packetName = "unknown") : int
+	{
+		$rewriteData = $this->getPlayer()->getRewriteData();
+
+		if ($runtimeId === $rewriteData->originalEntityId && $rewriteData->entityId !== 0) {
+			$this->getPlayer()->getNetworkSession()->getLogger()->debug(
+				"RuntimeId rewrite in {$packetName}: backend={$runtimeId} -> client={$rewriteData->entityId}"
+			);
+
+			return $rewriteData->entityId;
+		}
+
+		if ($runtimeId === $rewriteData->entityId) {
+			$this->getPlayer()->getNetworkSession()->getLogger()->debug(
+				"RuntimeId already client id in {$packetName}: {$runtimeId}"
+			);
+		}
+
+		return $runtimeId;
+	}
+
+	public function handleMovePlayer(MovePlayerPacket $packet) : bool
+	{
+		$packet->actorRuntimeId = $this->rewriteLocalRuntimeId($packet->actorRuntimeId, "MovePlayerPacket");
+		return false;
+	}
+
+	public function handleSetActorData(SetActorDataPacket $packet) : bool
+	{
+		$packet->actorRuntimeId = $this->rewriteLocalRuntimeId($packet->actorRuntimeId, "SetActorDataPacket");
+		return false;
+	}
+
+	public function handleSetActorMotion(SetActorMotionPacket $packet) : bool
+	{
+		$packet->actorRuntimeId = $this->rewriteLocalRuntimeId($packet->actorRuntimeId, "SetActorMotionPacket");
+		return false;
+	}
+
+	public function handleUpdateAttributes(UpdateAttributesPacket $packet) : bool
+	{
+		$packet->actorRuntimeId = $this->rewriteLocalRuntimeId($packet->actorRuntimeId, "UpdateAttributesPacket");
+		return false;
+	}
+
+	public function handleMobEffect(MobEffectPacket $packet) : bool
+	{
+		$packet->actorRuntimeId = $this->rewriteLocalRuntimeId($packet->actorRuntimeId, "MobEffectPacket");
+		return false;
+	}
+
+	public function handleAnimate(AnimatePacket $packet) : bool
+	{
+		$packet->actorRuntimeId = $this->rewriteLocalRuntimeId($packet->actorRuntimeId, "AnimatePacket");
+		return false;
+	}
+
+	public function handleLevelChunk(LevelChunkPacket $packet) : bool
+	{
+		static $chunkDebugCount = 0;
+
+		if ($chunkDebugCount < 20) {
+			++$chunkDebugCount;
+
+			$this->getPlayer()->getNetworkSession()->getLogger()->debug(
+				"LevelChunk from backend after transfer: " .
+				"x={$packet->getChunkPosition()->getX()}, z={$packet->getChunkPosition()->getZ()}, count={$chunkDebugCount}"
+			);
+		}
+
+		return false;
+	}
+
+	public function handleNetworkChunkPublisherUpdate(NetworkChunkPublisherUpdatePacket $packet) : bool
+	{
+		return false;
+	}
 
 	public function handleAvailableCommands(AvailableCommandsPacket $packet) : bool{
 		$player = $this->getPlayer();
@@ -205,12 +321,22 @@ class DownstreamInGameHandler extends AbstractDownstreamPacketHandler
 			$this->getPlayer()->getNetworkSession()->getLogger()->debug('Suppressing duplicate LOGIN_SUCCESS from backend');
 			return true;
 		}
+
 		if ($packet->status === PlayStatusPacket::PLAYER_SPAWN) {
-			if ($this->getPlayer()->backendRuntimeId === null) {
-				$this->getPlayer()->getNetworkSession()->getLogger()->debug('Cannot send spawn notification: backendRuntimeId is null.');
+			$player = $this->getPlayer();
+			$rewriteData = $player->getRewriteData();
+
+			if ($rewriteData->entityId !== 0 && $rewriteData->originalEntityId !== $rewriteData->entityId) {
+				$this->sendPostTransferSpawnInitialized();
+
+				return false;
+			}
+
+			if ($player->backendRuntimeId === null) {
+				$player->getNetworkSession()->getLogger()->debug('Cannot send spawn notification: backendRuntimeId is null.');
 			} else {
-				$this->getPlayer()->getNetworkSession()->getLogger()->debug('Sending spawn notification, waiting for spawn response');
-				$event = new PlayerJoinEvent($this->getPlayer());
+				$player->getNetworkSession()->getLogger()->debug('Sending spawn notification, waiting for spawn response');
+				$event = new PlayerJoinEvent($player);
 				$event->call();
 			}
 		}
