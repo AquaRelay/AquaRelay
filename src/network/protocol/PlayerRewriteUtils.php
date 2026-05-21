@@ -183,20 +183,13 @@ final class PlayerRewriteUtils
 		if (!$session->isConnected()) {
 			return;
 		}
+
 		$session->sendDataPacket(ChangeDimensionPacket::create($dimensionId, $position, true, null));
 
 		if ($chunks) {
 			self::injectChunkPublisherUpdate($session, BlockPosition::fromVector3($position), 3);
 			self::injectEmptyChunks($session, $position, 3, $dimensionId);
 		}
-
-		$session->sendDataPacket(PlayerActionPacket::create(
-			$runtimeId,
-			PlayerAction::DIMENSION_CHANGE_ACK,
-			new BlockPosition(0, 0, 0),
-			new BlockPosition(0, 0, 0),
-			0
-		));
 	}
 
 	public static function injectEmptyChunks(NetworkSession $session, Vector3 $spawnPosition, int $radius, int $dimension) : void

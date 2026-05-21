@@ -86,7 +86,7 @@ class UpstreamLoginHandler extends AbstractUpstreamPacketHandler
 				$this->session->setUsername($clientData->xname);
 				$this->session->getLogger()->setPrefix("NetworkSession: " . $this->session->getDisplayName());
 
-				$player = ProxyServer::getInstance()->getPlayerManager()->createPlayer($this->session, $loginData);
+				$player = ProxyServer::getInstance()->getPlayerManager()->createPlayer($this->session, $loginData, $packet);
 				$this->session->setPlayer($player);
 
 			} catch (\Exception $e) {
@@ -179,7 +179,7 @@ class UpstreamLoginHandler extends AbstractUpstreamPacketHandler
 			$this->session->getLogger()->info("Player: " . Colors::AQUA . $username);
 			$this->session->setUsername($username);
 			$this->session->getLogger()->setPrefix("NetworkSession: " . $this->session->getDisplayName());
-			$player = ProxyServer::getInstance()->getPlayerManager()->createPlayer($this->session, $loginData);
+			$player = ProxyServer::getInstance()->getPlayerManager()->createPlayer($this->session, $loginData, $packet);
 			$this->session->setPlayer($player);
 		}
 

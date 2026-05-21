@@ -75,9 +75,10 @@ class Player implements CommandSender, PermissionHolder
 	private array $scoreboards = [];
 
 	public function __construct(
-		private readonly ProxyServer    $proxyServer,
+		private readonly ProxyServer $proxyServer,
 		private readonly NetworkSession $upstreamSession,
-		private readonly LoginData $loginData
+		private readonly LoginData $loginData,
+		private readonly LoginPacket $loginPacket
 	)
 	{
 		$this->xuid = $loginData->xuid;
@@ -85,6 +86,11 @@ class Player implements CommandSender, PermissionHolder
 		$this->rewriteData = new RewriteData();
 
 		$this->setHandler(new DownstreamResourcePackHandler($this, $this->proxyServer->getLogger()));
+	}
+
+	public function getLoginPacket() : LoginPacket
+	{
+		return clone $this->loginPacket;
 	}
 
 	public function sendDataPacket(ClientboundPacket $packet) : void
@@ -268,7 +274,7 @@ class Player implements CommandSender, PermissionHolder
 
 		$this->backendServer = $server;
 
-		if ($this->getServer()->getConfig()->getMiscSettings()->getFastTransfer() && $this->rewriteData->entityId !== 0) {
+		if ($this->rewriteData->entityId !== 0) { //
 			$this->setHandler(new SwitchDownstreamResourcePackHandler($this, $this->proxyServer->getLogger()));
 		} else {
 			$this->setHandler(new DownstreamResourcePackHandler($this, $this->proxyServer->getLogger()));

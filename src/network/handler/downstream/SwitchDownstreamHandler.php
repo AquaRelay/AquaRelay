@@ -27,9 +27,13 @@ namespace aquarelay\network\handler\downstream;
 use aquarelay\network\protocol\PlayerRewriteUtils;
 use aquarelay\network\protocol\TransferCallback;
 use pocketmine\network\mcpe\protocol\DisconnectPacket;
+use pocketmine\network\mcpe\protocol\LevelChunkPacket;
+use pocketmine\network\mcpe\protocol\NetworkChunkPublisherUpdatePacket;
 use pocketmine\network\mcpe\protocol\PlayStatusPacket;
 use pocketmine\network\mcpe\protocol\RequestChunkRadiusPacket;
+use pocketmine\network\mcpe\protocol\SetLocalPlayerAsInitializedPacket;
 use pocketmine\network\mcpe\protocol\StartGamePacket;
+use pocketmine\network\mcpe\protocol\types\DimensionIds;
 
 class SwitchDownstreamHandler extends AbstractDownstreamPacketHandler
 {
@@ -37,12 +41,33 @@ class SwitchDownstreamHandler extends AbstractDownstreamPacketHandler
 	{
 		if ($packet->status === PlayStatusPacket::PLAYER_SPAWN) {
 			$rewriteData = $this->getPlayer()->getRewriteData();
+
 			if ($rewriteData->transferCallback !== null && $rewriteData->transferCallback->getPhase() === TransferCallback::PHASE_2) {
 				$rewriteData->transferCallback->onDimChangeSuccess();
 			}
 			return true;
 		}
 		return true;
+	}
+
+	public function handleLevelChunk(LevelChunkPacket $packet) : bool
+	{
+		$rewriteData = $this->getPlayer()->getRewriteData();
+
+		if ($rewriteData->transferCallback !== null) {
+			return true;
+		}
+		return false;
+	}
+
+	public function handleNetworkChunkPublisherUpdate(NetworkChunkPublisherUpdatePacket $packet) : bool
+	{
+		$rewriteData = $this->getPlayer()->getRewriteData();
+
+		if ($rewriteData->transferCallback !== null) {
+			return true;
+		}
+		return false;
 	}
 
 	public function handleStartGame(StartGamePacket $packet) : bool
@@ -52,6 +77,8 @@ class SwitchDownstreamHandler extends AbstractDownstreamPacketHandler
 		$session = $player->getNetworkSession();
 
 		$rewriteData->originalEntityId = $packet->actorRuntimeId;
+		$player->setBackendRuntimeId($packet->actorRuntimeId);
+
 		$rewriteData->gameRules = $packet->levelSettings->gameRules;
 		$rewriteData->spawnPosition = $packet->playerPosition;
 		$rewriteData->pitch = $packet->pitch;
@@ -101,50 +128,77 @@ class SwitchDownstreamHandler extends AbstractDownstreamPacketHandler
 		PlayerRewriteUtils::injectSetDifficulty($session, $packet->levelSettings->difficulty);
 		PlayerRewriteUtils::injectGameRules($session, $packet->levelSettings->gameRules);
 
-		$chunkRadiusPacket = new RequestChunkRadiusPacket();
-		$chunkRadiusPacket->radius = 8;
-		$chunkRadiusPacket->maxRadius = 8;
-		$player->sendToBackend($chunkRadiusPacket);
-
 		$targetDim = $packet->levelSettings->spawnSettings->getDimension();
-		$newDimension = PlayerRewriteUtils::determineDimensionId($rewriteData->dimension, $targetDim);
+		$oldDimension = $rewriteData->dimension;
+
+		$needsDimensionHop = $oldDimension === $targetDim;
+
+		$newDimension = $needsDimensionHop
+			? PlayerRewriteUtils::determineDimensionId($oldDimension, $targetDim)
+			: $targetDim;
 
 		$transferCallback = new TransferCallback($player, $oldServer, $targetDim);
-		$rewriteData->dimension = $newDimension;
 		$rewriteData->transferCallback = $transferCallback;
 
-		$fastTransfer = ($newDimension !== $targetDim);
+		$useFastTransfer = $player->getServer()->getConfig()->getMiscSettings()->getFastTransfer();
 
-		if ($fastTransfer) {
+		$startTransferWatchdog = function () use ($session, $player, $transferCallback, $useFastTransfer) : void {
+			$player->getServer()->getScheduler()->scheduleDelayed(function () use ($session, $player, $transferCallback, $useFastTransfer) : void {
+				if (!$session->isConnected()) {
+					return;
+				}
+				$rewriteData = $player->getRewriteData();
+
+				if ($rewriteData->transferCallback === $transferCallback && $transferCallback->getPhase() === TransferCallback::PHASE_1) {
+					$transferCallback->onDimChangeSuccess();
+				}
+			}, $useFastTransfer ? 20 : 60);
+
+			$player->getServer()->getScheduler()->scheduleDelayed(function () use ($session, $player, $transferCallback, $useFastTransfer) : void {
+				if (!$session->isConnected()) {
+					return;
+				}
+				$rewriteData = $player->getRewriteData();
+
+				if ($rewriteData->transferCallback === $transferCallback && $transferCallback->getPhase() === TransferCallback::PHASE_2) {
+					$transferCallback->onDimChangeSuccess();
+				}
+			}, $useFastTransfer ? 45 : 100);
+		};
+
+		if ($useFastTransfer) {
 			$fakePosition = $packet->playerPosition->add(2000, 0, 2000);
 
 			PlayerRewriteUtils::injectPosition(
-				$session, $fakePosition, $packet->pitch, $packet->yaw, $rewriteData->entityId
+				$session,
+				$fakePosition,
+				$packet->pitch,
+				$packet->yaw,
+				$rewriteData->entityId
 			);
 
+			$rewriteData->dimension = $newDimension;
+
 			PlayerRewriteUtils::injectDimensionChange(
-				$session, $newDimension, $fakePosition, $rewriteData->entityId, true
+				$session,
+				$newDimension,
+				$fakePosition,
+				$rewriteData->entityId,
+				true
 			);
 
-			$player->getServer()->getScheduler()->scheduleDelayed(function () use ($session) {
-				if ($session->isConnected()) {
-					$session->sendDataPacket(PlayStatusPacket::create(PlayStatusPacket::PLAYER_SPAWN));
-				}
-			}, 40);
-		} elseif ($newDimension === $targetDim) {
-			PlayerRewriteUtils::injectPosition(
-				$session, $packet->playerPosition, $packet->pitch, $packet->yaw, $rewriteData->entityId
-			);
-			PlayerRewriteUtils::injectDimensionChange(
-				$session, $newDimension, $packet->playerPosition, $rewriteData->entityId, false
-			);
-			$transferCallback->onDimChangeSuccess();
-			$transferCallback->onDimChangeSuccess();
+			$startTransferWatchdog();
 		} else {
-			PlayerRewriteUtils::injectPosition(
-				$session, $packet->playerPosition, $packet->pitch, $packet->yaw, $rewriteData->entityId
-			);
 			$rewriteData->dimension = $targetDim;
+
+			PlayerRewriteUtils::injectPosition(
+				$session,
+				$packet->playerPosition,
+				$packet->pitch,
+				$packet->yaw,
+				$rewriteData->entityId
+			);
+
 			$transferCallback->onDimChangeSuccess();
 			$transferCallback->onDimChangeSuccess();
 		}

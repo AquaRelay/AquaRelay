@@ -26,6 +26,7 @@ namespace aquarelay\player;
 
 use aquarelay\network\NetworkSession;
 use aquarelay\utils\LoginData;
+use pocketmine\network\mcpe\protocol\LoginPacket;
 use function array_values;
 use function spl_object_hash;
 
@@ -34,9 +35,9 @@ class PlayerManager
 	/** @var Player[] */
 	private array $players = [];
 
-	public function createPlayer(NetworkSession $session, LoginData $data) : Player
+	public function createPlayer(NetworkSession $session, LoginData $data, LoginPacket $loginPacket) : Player
 	{
-		$player = new Player($session->getServer(), $session, $data);
+		$player = new Player($session->getServer(), $session, $data, clone $loginPacket);
 		$this->players[spl_object_hash($session)] = $player;
 
 		return $player;
