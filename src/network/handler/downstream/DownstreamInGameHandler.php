@@ -61,7 +61,6 @@ use function ucfirst;
 
 class DownstreamInGameHandler extends AbstractDownstreamPacketHandler
 {
-
 	private function sendPostTransferSpawnInitialized() : void
 	{
 		$player = $this->getPlayer();
@@ -78,10 +77,6 @@ class DownstreamInGameHandler extends AbstractDownstreamPacketHandler
 
 		$rewriteData->postTransferSpawnInitialized = true;
 
-		$player->getNetworkSession()->getLogger()->debug(
-			"Sending post-transfer SetLocalPlayerAsInitialized to backend with runtimeId={$rewriteData->originalEntityId}"
-		);
-
 		$downstream->sendGamePacket(SetLocalPlayerAsInitializedPacket::create($rewriteData->originalEntityId));
 
 		$chunkRadiusPacket = new RequestChunkRadiusPacket();
@@ -91,81 +86,49 @@ class DownstreamInGameHandler extends AbstractDownstreamPacketHandler
 		$downstream->sendGamePacket($chunkRadiusPacket);
 	}
 
-	private function rewriteLocalRuntimeId(int $runtimeId, string $packetName = "unknown") : int
+	private function rewriteLocalRuntimeId(int $runtimeId) : int
 	{
 		$rewriteData = $this->getPlayer()->getRewriteData();
 
 		if ($runtimeId === $rewriteData->originalEntityId && $rewriteData->entityId !== 0) {
-			$this->getPlayer()->getNetworkSession()->getLogger()->debug(
-				"RuntimeId rewrite in {$packetName}: backend={$runtimeId} -> client={$rewriteData->entityId}"
-			);
-
 			return $rewriteData->entityId;
 		}
-
-		if ($runtimeId === $rewriteData->entityId) {
-			$this->getPlayer()->getNetworkSession()->getLogger()->debug(
-				"RuntimeId already client id in {$packetName}: {$runtimeId}"
-			);
-		}
-
 		return $runtimeId;
 	}
 
 	public function handleMovePlayer(MovePlayerPacket $packet) : bool
 	{
-		$packet->actorRuntimeId = $this->rewriteLocalRuntimeId($packet->actorRuntimeId, "MovePlayerPacket");
+		$packet->actorRuntimeId = $this->rewriteLocalRuntimeId($packet->actorRuntimeId);
 		return false;
 	}
 
 	public function handleSetActorData(SetActorDataPacket $packet) : bool
 	{
-		$packet->actorRuntimeId = $this->rewriteLocalRuntimeId($packet->actorRuntimeId, "SetActorDataPacket");
+		$packet->actorRuntimeId = $this->rewriteLocalRuntimeId($packet->actorRuntimeId);
 		return false;
 	}
 
 	public function handleSetActorMotion(SetActorMotionPacket $packet) : bool
 	{
-		$packet->actorRuntimeId = $this->rewriteLocalRuntimeId($packet->actorRuntimeId, "SetActorMotionPacket");
+		$packet->actorRuntimeId = $this->rewriteLocalRuntimeId($packet->actorRuntimeId);
 		return false;
 	}
 
 	public function handleUpdateAttributes(UpdateAttributesPacket $packet) : bool
 	{
-		$packet->actorRuntimeId = $this->rewriteLocalRuntimeId($packet->actorRuntimeId, "UpdateAttributesPacket");
+		$packet->actorRuntimeId = $this->rewriteLocalRuntimeId($packet->actorRuntimeId);
 		return false;
 	}
 
 	public function handleMobEffect(MobEffectPacket $packet) : bool
 	{
-		$packet->actorRuntimeId = $this->rewriteLocalRuntimeId($packet->actorRuntimeId, "MobEffectPacket");
+		$packet->actorRuntimeId = $this->rewriteLocalRuntimeId($packet->actorRuntimeId);
 		return false;
 	}
 
 	public function handleAnimate(AnimatePacket $packet) : bool
 	{
-		$packet->actorRuntimeId = $this->rewriteLocalRuntimeId($packet->actorRuntimeId, "AnimatePacket");
-		return false;
-	}
-
-	public function handleLevelChunk(LevelChunkPacket $packet) : bool
-	{
-		static $chunkDebugCount = 0;
-
-		if ($chunkDebugCount < 20) {
-			++$chunkDebugCount;
-
-			$this->getPlayer()->getNetworkSession()->getLogger()->debug(
-				"LevelChunk from backend after transfer: " .
-				"x={$packet->getChunkPosition()->getX()}, z={$packet->getChunkPosition()->getZ()}, count={$chunkDebugCount}"
-			);
-		}
-
-		return false;
-	}
-
-	public function handleNetworkChunkPublisherUpdate(NetworkChunkPublisherUpdatePacket $packet) : bool
-	{
+		$packet->actorRuntimeId = $this->rewriteLocalRuntimeId($packet->actorRuntimeId);
 		return false;
 	}
 
@@ -336,6 +299,7 @@ class DownstreamInGameHandler extends AbstractDownstreamPacketHandler
 				$player->getNetworkSession()->getLogger()->debug('Cannot send spawn notification: backendRuntimeId is null.');
 			} else {
 				$player->getNetworkSession()->getLogger()->debug('Sending spawn notification, waiting for spawn response');
+
 				$event = new PlayerJoinEvent($player);
 				$event->call();
 			}

@@ -37,11 +37,11 @@ use pocketmine\network\mcpe\protocol\types\DimensionIds;
 
 class SwitchDownstreamHandler extends AbstractDownstreamPacketHandler
 {
-
 	public function handlePlayStatus(PlayStatusPacket $packet) : bool
 	{
 		if ($packet->status === PlayStatusPacket::PLAYER_SPAWN) {
 			$rewriteData = $this->getPlayer()->getRewriteData();
+
 			if ($rewriteData->transferCallback !== null && $rewriteData->transferCallback->getPhase() === TransferCallback::PHASE_2) {
 				$rewriteData->transferCallback->onDimChangeSuccess();
 			}
@@ -55,15 +55,8 @@ class SwitchDownstreamHandler extends AbstractDownstreamPacketHandler
 		$rewriteData = $this->getPlayer()->getRewriteData();
 
 		if ($rewriteData->transferCallback !== null) {
-			$this->getPlayer()->getNetworkSession()->getLogger()->debug(
-				"Dropping LevelChunk during transfer: x={$packet->getChunkPosition()->getX()}, z={$packet->getChunkPosition()->getZ()}, phase={$rewriteData->transferCallback->getPhase()}"
-			);
 			return true;
 		}
-
-		$this->getPlayer()->getNetworkSession()->getLogger()->debug(
-			"Passing LevelChunk during switch: x={$packet->getChunkPosition()->getX()}, z={$packet->getChunkPosition()->getZ()}"
-		);
 		return false;
 	}
 
@@ -72,15 +65,8 @@ class SwitchDownstreamHandler extends AbstractDownstreamPacketHandler
 		$rewriteData = $this->getPlayer()->getRewriteData();
 
 		if ($rewriteData->transferCallback !== null) {
-			$this->getPlayer()->getNetworkSession()->getLogger()->debug(
-				"Dropping NetworkChunkPublisherUpdate during transfer"
-			);
 			return true;
 		}
-
-		$this->getPlayer()->getNetworkSession()->getLogger()->debug(
-			"Passing NetworkChunkPublisherUpdate during switch"
-		);
 		return false;
 	}
 
@@ -90,19 +76,8 @@ class SwitchDownstreamHandler extends AbstractDownstreamPacketHandler
 		$rewriteData = $player->getRewriteData();
 		$session = $player->getNetworkSession();
 
-		$oldBackendRuntimeId = $player->backendRuntimeId ?? -1;
-
 		$rewriteData->originalEntityId = $packet->actorRuntimeId;
 		$player->setBackendRuntimeId($packet->actorRuntimeId);
-
-		$session->getLogger()->debug(
-			"Switch StartGame received: " .
-			"newBackendRuntimeId={$packet->actorRuntimeId}, " .
-			"oldBackendRuntimeId={$oldBackendRuntimeId}, " .
-			"clientRuntimeId={$rewriteData->entityId}, " .
-			"spawn={$packet->playerPosition->x},{$packet->playerPosition->y},{$packet->playerPosition->z}, " .
-			"pitch={$packet->pitch}, yaw={$packet->yaw}"
-		);
 
 		$rewriteData->gameRules = $packet->levelSettings->gameRules;
 		$rewriteData->spawnPosition = $packet->playerPosition;
@@ -175,7 +150,6 @@ class SwitchDownstreamHandler extends AbstractDownstreamPacketHandler
 				$rewriteData = $player->getRewriteData();
 
 				if ($rewriteData->transferCallback === $transferCallback && $transferCallback->getPhase() === TransferCallback::PHASE_1) {
-					$session->getLogger()->debug(($useFastTransfer ? "Fast" : "Safe") . " transfer stuck in PHASE_1, forcing callback");
 					$transferCallback->onDimChangeSuccess();
 				}
 			}, $useFastTransfer ? 20 : 60);
@@ -187,7 +161,6 @@ class SwitchDownstreamHandler extends AbstractDownstreamPacketHandler
 				$rewriteData = $player->getRewriteData();
 
 				if ($rewriteData->transferCallback === $transferCallback && $transferCallback->getPhase() === TransferCallback::PHASE_2) {
-					$session->getLogger()->debug(($useFastTransfer ? "Fast" : "Safe") . " transfer stuck in PHASE_2, forcing callback");
 					$transferCallback->onDimChangeSuccess();
 				}
 			}, $useFastTransfer ? 45 : 100);
@@ -216,14 +189,6 @@ class SwitchDownstreamHandler extends AbstractDownstreamPacketHandler
 
 			$startTransferWatchdog();
 		} else {
-			$session->getLogger()->debug(
-				"Safe transfer: " .
-				"clientRuntimeId={$rewriteData->entityId}, " .
-				"backendRuntimeId={$rewriteData->originalEntityId}, " .
-				"targetDimension={$targetDim}, " .
-				"spawn={$packet->playerPosition->x},{$packet->playerPosition->y},{$packet->playerPosition->z}"
-			);
-
 			$rewriteData->dimension = $targetDim;
 
 			PlayerRewriteUtils::injectPosition(

@@ -54,7 +54,6 @@ use const JSON_THROW_ON_ERROR;
 
 class UpstreamLoginHandler extends AbstractUpstreamPacketHandler
 {
-
 	public function handleLogin(LoginPacket $packet) : bool
 	{
 		if ($this->session->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_93) {

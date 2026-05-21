@@ -97,16 +97,6 @@ class TransferCallback
 
 		$spawnPos = $rewriteData->spawnPosition ?? new Vector3(0, 64, 0);
 
-		$session->getLogger()->debug(
-			"TransferCallback PHASE_2: " .
-			"clientRuntimeId={$rewriteData->entityId}, " .
-			"backendRuntimeId={$rewriteData->originalEntityId}, " .
-			"targetDimension={$this->targetDimension}, " .
-			"spawn={$spawnPos->x},{$spawnPos->y},{$spawnPos->z}, " .
-			"pitch={$rewriteData->pitch}, yaw={$rewriteData->yaw}"
-		);
-
-		// secure mode
 		$rewriteData->dimension = $this->targetDimension;
 
 		PlayerRewriteUtils::injectPosition(
@@ -125,10 +115,6 @@ class TransferCallback
 		}
 		$downstream->sendGamePacket(SetLocalPlayerAsInitializedPacket::create($rewriteData->originalEntityId));
 
-		$session->getLogger()->debug(
-			"Sent manual SetLocalPlayerAsInitialized to backend with runtimeId={$rewriteData->originalEntityId}"
-		);
-
 		$this->player->setHandler(new DownstreamInGameHandler(
 			$this->player,
 			$this->player->getServer()->getLogger()
@@ -138,11 +124,6 @@ class TransferCallback
 			if (!$session->isConnected() || !$downstream->isConnected()) {
 				return;
 			}
-
-			$session->getLogger()->debug(
-				"Requesting chunks from backend after manual init: " .
-				"radius=8, spawn={$spawnPos->x},{$spawnPos->y},{$spawnPos->z}"
-			);
 
 			$session->sendDataPacket(NetworkChunkPublisherUpdatePacket::create(
 				new BlockPosition((int)$spawnPos->x, (int)$spawnPos->y, (int)$spawnPos->z),

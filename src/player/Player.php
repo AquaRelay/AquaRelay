@@ -274,7 +274,7 @@ class Player implements CommandSender, PermissionHolder
 
 		$this->backendServer = $server;
 
-		if ($this->rewriteData->entityId !== 0) {
+		if ($this->rewriteData->entityId !== 0) { //
 			$this->setHandler(new SwitchDownstreamResourcePackHandler($this, $this->proxyServer->getLogger()));
 		} else {
 			$this->setHandler(new DownstreamResourcePackHandler($this, $this->proxyServer->getLogger()));
