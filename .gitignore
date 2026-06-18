@@ -21,7 +21,7 @@ vendor/*
 # AquaRelay files
 config.yml
 *.log
-AquaRelay.phar
+*.phar
 logs
 plugins
 resourcepacks
