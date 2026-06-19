@@ -22,16 +22,8 @@
 
 declare(strict_types=1);
 
-namespace aquarelay\network\raklib\client;
+namespace aquarelay\network\encryption;
 
-enum ConnectionState : int
+class EncryptionException extends \RuntimeException
 {
-	case UNCONNECTED = 0;
-	case CONNECTING_1 = 1;
-	case CONNECTING_2 = 2;
-	case CONNECTING_3 = 3;
-	case CONNECTED = 4;
-	case GAME_HANDSHAKE = 5;
-	case POST_LOGIN = 6; // login sent, waiting to see whether the backend starts an encryption handshake
-	case LOGGED_IN = 7;
 }

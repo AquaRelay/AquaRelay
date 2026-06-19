@@ -26,15 +26,23 @@ namespace aquarelay\network\raklib\client;
 
 use aquarelay\lang\TranslationFactory;
 use aquarelay\network\compression\ZlibCompressor;
+use aquarelay\network\encryption\EncryptionContext;
+use aquarelay\network\encryption\EncryptionException;
+use aquarelay\network\encryption\EncryptionUtils;
 use aquarelay\network\PacketBatchDecoder;
 use aquarelay\network\raklib\RakLibInterface;
 use aquarelay\player\Player;
+use aquarelay\utils\JWTUtils;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\ByteBufferReader;
+use pocketmine\network\mcpe\protocol\ClientToServerHandshakePacket;
 use pocketmine\network\mcpe\protocol\DataPacket;
+use pocketmine\network\mcpe\protocol\LoginPacket;
 use pocketmine\network\mcpe\protocol\NetworkSettingsPacket;
+use pocketmine\network\mcpe\protocol\PacketDecodeException;
 use pocketmine\network\mcpe\protocol\PacketPool;
 use pocketmine\network\mcpe\protocol\RequestNetworkSettingsPacket;
+use pocketmine\network\mcpe\protocol\ServerToClientHandshakePacket;
 use pocketmine\utils\Binary;
 use raklib\client\ClientSocket;
 use raklib\generic\DisconnectReason;
@@ -57,11 +65,13 @@ use raklib\protocol\PacketSerializer;
 use raklib\protocol\UnconnectedPing;
 use raklib\utils\InternetAddress;
 use Ramsey\Uuid\Uuid;
+use function is_string;
 use function microtime;
 use function min;
 use function ord;
 use function random_int;
 use function strlen;
+use function substr;
 use const PHP_INT_MAX;
 
 final class BackendRakClient extends Session
@@ -83,6 +93,8 @@ final class BackendRakClient extends Session
 
 	private ?int $rakCookie = null;
 	private bool $compressionEnabled = false;
+	private ?EncryptionContext $encryptionContext = null;
+	private bool $closed = false;
 
 	public function __construct(
 		InternetAddress $address,
@@ -120,6 +132,10 @@ final class BackendRakClient extends Session
 
 	public function tick() : void
 	{
+		if ($this->closed) {
+			return;
+		}
+
 		try {
 			while (($buf = $this->socket->readPacket()) !== null) {
 				$pid = ord($buf[0]);
@@ -151,6 +167,10 @@ final class BackendRakClient extends Session
 
 	public function close() : void
 	{
+		if ($this->closed) {
+			return;
+		}
+		$this->closed = true;
 		$this->socket->close();
 	}
 
@@ -170,7 +190,15 @@ final class BackendRakClient extends Session
 
 	protected function onDisconnect(int $reason) : void
 	{
+		if ($this->closed) {
+			return;
+		}
 		$this->close();
+
+		if ($this->connState !== ConnectionState::LOGGED_IN) {
+			$this->getLogger()->warning("Backend '{$this->player->getBackendServer()?->getName()}' disconnected during handshake (reason $reason)");
+			$this->player->tryFallbackOrDisconnect();
+		}
 	}
 
 	protected function handleRakNetConnectionPacket(string $packet) : void
@@ -189,41 +217,145 @@ final class BackendRakClient extends Session
 	protected function onPacketReceive(string $packet) : void
 	{
 		$id = ord($packet[0]);
-		if ($id === RakLibInterface::MCPE_RAKNET_PACKET_ID_BYTE) {
-			if ($this->connState === ConnectionState::GAME_HANDSHAKE) {
-				foreach (PacketBatchDecoder::decodeRaw($packet, $this->getLogger(), false) as $buffer) {
-					$pk = PacketPool::getInstance()->getPacket($buffer);
-					if ($pk instanceof DataPacket) {
-						$pk->decode(new ByteBufferReader($buffer), $this->player->getProtocol());
-						if ($pk instanceof NetworkSettingsPacket) {
-							$this->compressionEnabled = true;
-							$this->connState = ConnectionState::LOGGED_IN;
+		if ($id !== RakLibInterface::MCPE_RAKNET_PACKET_ID_BYTE) {
+			return;
+		}
 
-							$this->encodeAndSend($this->player->getLoginPacket());
+		if ($this->connState === ConnectionState::GAME_HANDSHAKE) {
+			$this->handleGameHandshake($packet);
+			return;
+		}
 
-							foreach ($this->sendQueue as $p) {
-								$this->encodeAndSend($p);
-							}
+		if ($this->connState === ConnectionState::POST_LOGIN) {
+			$this->handlePostLogin($packet);
+			return;
+		}
 
-							$this->sendQueue = [];
-							return;
-						}
+		$payload = $packet;
+		if ($this->encryptionContext !== null) {
+			try {
+				$payload = $this->encryptionContext->decrypt(substr($packet, 1));
+			} catch (EncryptionException $e) {
+				$this->getLogger()->debug("Failed to decrypt backend packet: " . $e->getMessage());
+				return;
+			}
+		}
 
-						$this->player->handleBackendPacket($pk);
-					}
+		foreach (PacketBatchDecoder::decodeRaw($payload, $this->getLogger(), $this->compressionEnabled) as $buffer) {
+			$pk = PacketPool::getInstance()->getPacket($buffer);
+			if ($pk instanceof DataPacket) {
+				try {
+					$pk->decode(new ByteBufferReader($buffer), $this->player->getProtocol());
+				} catch (PacketDecodeException $e) {
+					$this->getLogger()->debug("Could not decode backend packet, forwarding raw: " . $e->getMessage());
+					$this->player->getNetworkSession()->addToSendBuffer($buffer);
+					continue;
+				}
+				$this->player->handleBackendPacket($pk);
+			}
+		}
+
+		$this->player->getNetworkSession()->flushGamePacketQueue();
+	}
+
+	private function handleGameHandshake(string $packet) : void
+	{
+		foreach (PacketBatchDecoder::decodeRaw($packet, $this->getLogger(), false) as $buffer) {
+			$pk = PacketPool::getInstance()->getPacket($buffer);
+			if ($pk instanceof DataPacket) {
+				$pk->decode(new ByteBufferReader($buffer), $this->player->getProtocol());
+				if ($pk instanceof NetworkSettingsPacket) {
+					$this->compressionEnabled = true;
+
+					$this->encodeAndSend($this->getDownstreamLoginPacket());
+
+					$this->connState = ConnectionState::POST_LOGIN;
+					return;
 				}
 
+				$this->player->handleBackendPacket($pk);
+			}
+		}
+	}
+
+	private function handlePostLogin(string $packet) : void
+	{
+		foreach (PacketBatchDecoder::decodeRaw($packet, $this->getLogger(), $this->compressionEnabled) as $buffer) {
+			$pk = PacketPool::getInstance()->getPacket($buffer);
+			if (!($pk instanceof DataPacket)) {
+				continue;
+			}
+
+			try {
+				$pk->decode(new ByteBufferReader($buffer), $this->player->getProtocol());
+			} catch (PacketDecodeException $e) {
+				$this->finishLogin();
+				$this->getLogger()->debug("Could not decode backend packet, forwarding raw: " . $e->getMessage());
+				$this->player->getNetworkSession()->addToSendBuffer($buffer);
+				continue;
+			}
+
+			if ($pk instanceof ServerToClientHandshakePacket && $this->connState === ConnectionState::POST_LOGIN) {
+				$this->completeEncryptionHandshake($pk->jwt);
 				return;
 			}
 
-			foreach (PacketBatchDecoder::decodeRaw($packet, $this->getLogger(), $this->compressionEnabled) as $buffer) {
-				$pk = PacketPool::getInstance()->getPacket($buffer);
-				if ($pk instanceof DataPacket) {
-					$pk->decode(new ByteBufferReader($buffer), $this->player->getProtocol());
-					$this->player->handleBackendPacket($pk);
-				}
-			}
+			$this->finishLogin();
+			$this->player->handleBackendPacket($pk);
 		}
+
+		$this->player->getNetworkSession()->flushGamePacketQueue();
+	}
+
+	private function finishLogin() : void
+	{
+		if ($this->connState !== ConnectionState::LOGGED_IN) {
+			$this->connState = ConnectionState::LOGGED_IN;
+			$this->flushSendQueue();
+		}
+	}
+
+	private function completeEncryptionHandshake(string $jwt) : void
+	{
+		try {
+			[$header, $body] = JWTUtils::parse($jwt);
+			$peerKey = $header['x5u'] ?? null;
+			$salt = $body['salt'] ?? null;
+			if (!is_string($peerKey) || !is_string($salt)) {
+				throw new EncryptionException("ServerToClientHandshake is missing the public key or salt");
+			}
+
+			$key = EncryptionUtils::deriveSharedKey(JWTUtils::b64UrlDecode($salt), $peerKey);
+			$this->encryptionContext = EncryptionContext::fakeGCM($key);
+
+			//ClientToServerHandshake and everything after it must be encrypted.
+			$this->encodeAndSend(ClientToServerHandshakePacket::create());
+
+			$this->connState = ConnectionState::LOGGED_IN;
+			$this->flushSendQueue();
+
+			$this->getLogger()->debug("Backend encryption handshake completed");
+		} catch (\Throwable $e) {
+			$this->getLogger()->error("Backend encryption handshake failed: " . $e->getMessage());
+			$this->player->disconnect(TranslationFactory::translate("proxy.backend.read_error", [Uuid::uuid4()->toString()]));
+		}
+	}
+
+	private function flushSendQueue() : void
+	{
+		foreach ($this->sendQueue as $p) {
+			$this->encodeAndSend($p);
+		}
+		$this->sendQueue = [];
+	}
+
+	private function getDownstreamLoginPacket() : LoginPacket
+	{
+		return EncryptionUtils::createSelfSignedLoginPacket(
+			$this->player->getLoginData(),
+			$this->player->getProtocol(),
+			$this->player->getNetworkSession()->getAddress()
+		);
 	}
 
 	protected function onPingMeasure(int $pingMS) : void
@@ -323,7 +455,7 @@ final class BackendRakClient extends Session
 		$pk = new ConnectionRequest();
 		$pk->clientID = $this->getID();
 		$pk->sendPingTime = (int) (microtime(true) * 1000);
-		$pk->useSecurity = true;
+		$pk->useSecurity = false;
 		$this->sendEncapsulated($pk, PacketReliability::RELIABLE_ORDERED, 0, true);
 		$this->connState = ConnectionState::CONNECTING_3;
 	}
@@ -359,6 +491,11 @@ final class BackendRakClient extends Session
 		$batch = $header . $payload;
 
 		$finalPayload = "\x00" . ZlibCompressor::getInstance()->compress($batch);
+
+		if ($this->encryptionContext !== null) {
+			$finalPayload = $this->encryptionContext->encrypt($finalPayload);
+		}
+
 		$final = RakLibInterface::MCPE_RAKNET_PACKET_ID . $finalPayload;
 
 		$this->sendEncapsulatedRaw($final);
