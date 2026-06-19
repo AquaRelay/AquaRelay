@@ -22,10 +22,6 @@
 </p>
 
 ---
-> [!IMPORTANT]
-> This project is still under development, if you have found a bug please report it from the issues tab.
-
----
 
 ## Features
 - Fast transfer support between Bedrock servers

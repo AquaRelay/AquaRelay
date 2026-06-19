@@ -62,18 +62,27 @@ use function file_exists;
 use function file_get_contents;
 use function file_put_contents;
 use function is_dir;
+use function error_get_last;
+use function fwrite;
 use function microtime;
 use function mkdir;
 use function ord;
 use function register_shutdown_function;
 use function round;
+use function set_exception_handler;
 use function substr;
 use const DIRECTORY_SEPARATOR;
+use const E_COMPILE_ERROR;
+use const E_CORE_ERROR;
+use const E_ERROR;
+use const E_PARSE;
+use const E_USER_ERROR;
+use const STDERR;
 
 class ProxyServer
 {
 	public const NAME = 'AquaRelay';
-	public const VERSION = '1.0.0'; // Semver
+	public const VERSION = '1.0.1'; // Semver
 	public const IS_DEVELOPMENT = false;
 	public RakLibInterface $interface;
 	private MainLogger $logger;
@@ -87,6 +96,7 @@ class ProxyServer
 	private SimpleCommandMap $commandMap;
 	private PermissionManager $permissionManager;
 	private ResourcePackManager $resourcePackManager;
+	private bool $crashed = false;
 
 	private ConsoleCommandSender $consoleSender;
 
@@ -156,6 +166,14 @@ class ProxyServer
 			$this->getConfig()->getResourcePackSettings(),
 			$this->dataPath
 		);
+
+		set_exception_handler(fn(\Throwable $e) => $this->crash($e));
+		register_shutdown_function(function () : void {
+			$error = error_get_last();
+			if ($error !== null && ($error['type'] & (E_ERROR | E_PARSE | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR)) !== 0) {
+				$this->crash(new \Error("{$error['message']} in {$error['file']}:{$error['line']}"));
+			}
+		});
 
 		register_shutdown_function([$this, 'shutdown']);
 
@@ -424,18 +442,43 @@ class ProxyServer
 	{
 		$nextTick = microtime(true);
 
-		while (true) {
-			$now = microtime(true);
+		try {
+			while (true) {
+				$now = microtime(true);
 
-			$this->interface->tick();
+				$this->interface->tick();
 
-			if ($now >= $nextTick) {
-				$this->tick();
-				$nextTick += 0.05; // Tick interval
+				if ($now >= $nextTick) {
+					$this->tick();
+					$nextTick += 0.05; // Tick interval
+				}
+
+				$this->sleeper->sleepUntil($nextTick);
 			}
-
-			$this->sleeper->sleepUntil($nextTick);
+		} catch (\Throwable $e) {
+			$this->crash($e);
 		}
+	}
+
+	public function crash(\Throwable $e) : void
+	{
+		if ($this->crashed) {
+			return;
+		}
+		$this->crashed = true;
+
+		@fwrite(STDERR, 'The proxy has crashed: ' . $e->getMessage() . "\n" . $e->getTraceAsString() . "\n");
+
+		try {
+			$this->logger->emergency('The proxy has crashed due to an unhandled error!');
+			$this->logger->logException($e);
+			$this->logger->emergency('Forcing shutdown to avoid a frozen process.');
+			$this->logger->shutdown();
+		} catch (\Throwable) {
+			//Already wrote to STDERR above; nothing more we can safely do.
+		}
+
+		@Utils::kill(Utils::pid());
 	}
 
 	private function tick() : void

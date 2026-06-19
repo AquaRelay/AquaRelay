@@ -29,7 +29,6 @@ use aquarelay\player\Player;
 use aquarelay\server\BackendServer;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\NetworkChunkPublisherUpdatePacket;
-use pocketmine\network\mcpe\protocol\PlayStatusPacket;
 use pocketmine\network\mcpe\protocol\RequestChunkRadiusPacket;
 use pocketmine\network\mcpe\protocol\SetLocalPlayerAsInitializedPacket;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
@@ -126,7 +125,7 @@ class TransferCallback
 			}
 
 			$session->sendDataPacket(NetworkChunkPublisherUpdatePacket::create(
-				new BlockPosition((int)$spawnPos->x, (int)$spawnPos->y, (int)$spawnPos->z),
+				new BlockPosition((int) $spawnPos->x, (int) $spawnPos->y, (int) $spawnPos->z),
 				8 * 16,
 				[]
 			));

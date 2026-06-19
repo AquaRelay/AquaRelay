@@ -51,4 +51,4 @@ network-settings:
   compression-level: 6 # Compression level used for network packets (higher = more compression)
   max-mtu: 1492 # Maximum MTU size for RakNet packets
 
-config-version: 4 # Do not change this.
+config-version: 5 # Do not change this.

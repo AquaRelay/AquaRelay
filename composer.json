@@ -19,7 +19,8 @@
 		"ramsey/uuid": "~4.9.0",
 		"symfony/filesystem": "~6.4.0",
 		"ext-igbinary": "*",
-		"ext-pcre": "*"
+		"ext-pcre": "*",
+		"ext-openssl": "*"
 	},
 	"autoload": {
 		"psr-4": {
