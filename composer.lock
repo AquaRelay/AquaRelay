@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "126b3fedfb6ad351bb6666b3866bbddc",
+    "content-hash": "8c354ed89cec9b553dbb9add2cbd303c",
     "packages": [
         {
             "name": "aquarelay/raklib-ipc",
@@ -111,12 +111,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/NetherGamesMC/BedrockProtocol.git",
-                "reference": "e47fd09b342e1c450ff0e9a4cdf7016c1d6c810e"
+                "reference": "85a00336dc350fd377d9822d9aa44d3a53b8a6c8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/NetherGamesMC/BedrockProtocol/zipball/e47fd09b342e1c450ff0e9a4cdf7016c1d6c810e",
-                "reference": "e47fd09b342e1c450ff0e9a4cdf7016c1d6c810e",
+                "url": "https://api.github.com/repos/NetherGamesMC/BedrockProtocol/zipball/85a00336dc350fd377d9822d9aa44d3a53b8a6c8",
+                "reference": "85a00336dc350fd377d9822d9aa44d3a53b8a6c8",
                 "shasum": ""
             },
             "require": {
@@ -159,7 +159,7 @@
             "support": {
                 "source": "https://github.com/NetherGamesMC/BedrockProtocol/tree/master"
             },
-            "time": "2026-06-16T12:12:42+00:00"
+            "time": "2026-06-18T15:47:07+00:00"
         },
         {
             "name": "netresearch/jsonmapper",
@@ -1504,16 +1504,16 @@
         },
         {
             "name": "friendsofphp/php-cs-fixer",
-            "version": "v3.95.8",
+            "version": "v3.95.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PHP-CS-Fixer/PHP-CS-Fixer.git",
-                "reference": "4140023f552ff02346df9b1329742532166f677f"
+                "reference": "93e1ab3e1f153024bd3ab23c8a349556063c6f17"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHP-CS-Fixer/PHP-CS-Fixer/zipball/4140023f552ff02346df9b1329742532166f677f",
-                "reference": "4140023f552ff02346df9b1329742532166f677f",
+                "url": "https://api.github.com/repos/PHP-CS-Fixer/PHP-CS-Fixer/zipball/93e1ab3e1f153024bd3ab23c8a349556063c6f17",
+                "reference": "93e1ab3e1f153024bd3ab23c8a349556063c6f17",
                 "shasum": ""
             },
             "require": {
@@ -1597,7 +1597,7 @@
             ],
             "support": {
                 "issues": "https://github.com/PHP-CS-Fixer/PHP-CS-Fixer/issues",
-                "source": "https://github.com/PHP-CS-Fixer/PHP-CS-Fixer/tree/v3.95.8"
+                "source": "https://github.com/PHP-CS-Fixer/PHP-CS-Fixer/tree/v3.95.10"
             },
             "funding": [
                 {
@@ -1605,7 +1605,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-16T09:52:26+00:00"
+            "time": "2026-06-19T14:45:22+00:00"
         },
         {
             "name": "psr/container",
@@ -3585,7 +3585,8 @@
         "ext-encoding": "~1.0.0",
         "ext-zlib": ">=1.2.11",
         "ext-igbinary": "*",
-        "ext-pcre": "*"
+        "ext-pcre": "*",
+        "ext-openssl": "*"
     },
     "platform-dev": {},
     "plugin-api-version": "2.9.0"
