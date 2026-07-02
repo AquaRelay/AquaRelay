@@ -13,7 +13,6 @@ use function substr;
 
 final class PacketBatchDecoder
 {
-	private const PACKET_ID_SINGLE = 0xC1;
 	private const MCPE_RAKNET_PACKET_ID = 0xFE;
 
 	public static function decodeRaw(string $payload, \Logger $logger, bool $expectCompressionByte = true) : \Generator
@@ -55,17 +54,13 @@ final class PacketBatchDecoder
 			return;
 		}
 
-		if (ord($data[0]) === self::PACKET_ID_SINGLE) {
-			yield $data;
-		} else {
-			try {
-				$stream = new ByteBufferReader($data);
-				foreach (PacketBatch::decodeRaw($stream) as $buffer) {
-					yield $buffer;
-				}
-			} catch (\Throwable $e) {
-				$logger->debug("Batch decode error: " . $e->getMessage());
+		try {
+			$stream = new ByteBufferReader($data);
+			foreach (PacketBatch::decodeRaw($stream) as $buffer) {
+				yield $buffer;
 			}
+		} catch (\Throwable $e) {
+			$logger->debug("Batch decode error: " . $e->getMessage());
 		}
 	}
 }

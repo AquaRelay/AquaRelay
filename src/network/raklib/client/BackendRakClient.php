@@ -39,7 +39,6 @@ use pocketmine\network\mcpe\protocol\ClientToServerHandshakePacket;
 use pocketmine\network\mcpe\protocol\DataPacket;
 use pocketmine\network\mcpe\protocol\LoginPacket;
 use pocketmine\network\mcpe\protocol\NetworkSettingsPacket;
-use pocketmine\network\mcpe\protocol\PacketDecodeException;
 use pocketmine\network\mcpe\protocol\PacketPool;
 use pocketmine\network\mcpe\protocol\RequestNetworkSettingsPacket;
 use pocketmine\network\mcpe\protocol\ServerToClientHandshakePacket;
@@ -246,7 +245,7 @@ final class BackendRakClient extends Session
 			if ($pk instanceof DataPacket) {
 				try {
 					$pk->decode(new ByteBufferReader($buffer), $this->player->getProtocol());
-				} catch (PacketDecodeException $e) {
+				} catch (\Throwable $e) {
 					$this->getLogger()->debug("Could not decode backend packet, forwarding raw: " . $e->getMessage());
 					$this->player->getNetworkSession()->addToSendBuffer($buffer);
 					continue;
@@ -288,7 +287,7 @@ final class BackendRakClient extends Session
 
 			try {
 				$pk->decode(new ByteBufferReader($buffer), $this->player->getProtocol());
-			} catch (PacketDecodeException $e) {
+			} catch (\Throwable $e) {
 				$this->finishLogin();
 				$this->getLogger()->debug("Could not decode backend packet, forwarding raw: " . $e->getMessage());
 				$this->player->getNetworkSession()->addToSendBuffer($buffer);

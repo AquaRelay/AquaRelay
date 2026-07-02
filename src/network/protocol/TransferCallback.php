@@ -28,6 +28,7 @@ use aquarelay\network\handler\downstream\DownstreamInGameHandler;
 use aquarelay\player\Player;
 use aquarelay\server\BackendServer;
 use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\NetworkChunkPublisherUpdatePacket;
 use pocketmine\network\mcpe\protocol\RequestChunkRadiusPacket;
 use pocketmine\network\mcpe\protocol\SetLocalPlayerAsInitializedPacket;
@@ -41,11 +42,19 @@ class TransferCallback
 
 	private int $phase = self::PHASE_1;
 
+	/** @var ClientboundPacket[] */
+	private array $bufferedPackets = [];
+
 	public function __construct(
 		private readonly Player        $player,
 		private readonly ?BackendServer $sourceServer,
 		private readonly int           $targetDimension
 	) {}
+
+	public function bufferPacket(ClientboundPacket $packet) : void
+	{
+		$this->bufferedPackets[] = $packet;
+	}
 
 	public function onDimChangeSuccess() : bool
 	{
@@ -78,6 +87,14 @@ class TransferCallback
 		);
 
 		$rewriteData->dimension = $this->targetDimension;
+
+		PlayerRewriteUtils::injectDimensionChange(
+			$session,
+			$this->targetDimension,
+			$fakePosition,
+			$rewriteData->entityId,
+			true
+		);
 
 		return true;
 	}
@@ -113,6 +130,11 @@ class TransferCallback
 			return true;
 		}
 		$downstream->sendGamePacket(SetLocalPlayerAsInitializedPacket::create($rewriteData->originalEntityId));
+
+		foreach ($this->bufferedPackets as $buffered) {
+			$session->sendDataPacket($buffered);
+		}
+		$this->bufferedPackets = [];
 
 		$this->player->setHandler(new DownstreamInGameHandler(
 			$this->player,

@@ -55,6 +55,7 @@ class SwitchDownstreamHandler extends AbstractDownstreamPacketHandler
 		$rewriteData = $this->getPlayer()->getRewriteData();
 
 		if ($rewriteData->transferCallback !== null) {
+			$rewriteData->transferCallback->bufferPacket($packet);
 			return true;
 		}
 		return false;
@@ -65,6 +66,7 @@ class SwitchDownstreamHandler extends AbstractDownstreamPacketHandler
 		$rewriteData = $this->getPlayer()->getRewriteData();
 
 		if ($rewriteData->transferCallback !== null) {
+			$rewriteData->transferCallback->bufferPacket($packet);
 			return true;
 		}
 		return false;
@@ -139,6 +141,11 @@ class SwitchDownstreamHandler extends AbstractDownstreamPacketHandler
 
 		$transferCallback = new TransferCallback($player, $oldServer, $targetDim);
 		$rewriteData->transferCallback = $transferCallback;
+
+		$chunkRadiusPacket = new RequestChunkRadiusPacket();
+		$chunkRadiusPacket->radius = 8;
+		$chunkRadiusPacket->maxRadius = 8;
+		$player->getDownstream()?->sendGamePacket($chunkRadiusPacket);
 
 		$useFastTransfer = $player->getServer()->getConfig()->getMiscSettings()->getFastTransfer();
 
