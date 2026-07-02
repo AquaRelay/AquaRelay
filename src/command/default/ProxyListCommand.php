@@ -27,6 +27,7 @@ namespace aquarelay\command\default;
 use aquarelay\command\builder\CommandBuilder;
 use aquarelay\command\Command;
 use aquarelay\command\sender\CommandSender;
+use aquarelay\lang\TranslationFactory;
 use aquarelay\permission\DefaultPermissionNames;
 use aquarelay\server\BackendServer;
 use function array_map;
@@ -39,7 +40,7 @@ class ProxyListCommand extends Command
 	{
 		return new CommandBuilder(
 			"proxylist",
-			"Shows players in proxy",
+			TranslationFactory::translate('command.list.description'),
 			"/proxylist",
 			["plist"],
 			DefaultPermissionNames::COMMAND_PROXYLIST
@@ -71,10 +72,10 @@ class ProxyListCommand extends Command
 			$count = count($players);
 
 			$names = $count > 0 ? implode(', ', $players) : '';
-			$sender->sendMessage("§7(§b{$serverName}§7): §f" . $names);
+			$sender->sendMessage(TranslationFactory::translate('command.list.entry', [$serverName, $names]));
 
 		}
-		$sender->sendMessage("§3Online players: §f" . count($onlinePlayers));
+		$sender->sendMessage(TranslationFactory::translate('command.list.online', [count($onlinePlayers)]));
 		return true;
 	}
 }

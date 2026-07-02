@@ -24,6 +24,7 @@ declare(strict_types=1);
 
 namespace aquarelay\network\handler\downstream;
 
+use aquarelay\lang\TranslationFactory;
 use aquarelay\network\protocol\PlayerRewriteUtils;
 use aquarelay\network\protocol\TransferCallback;
 use pocketmine\network\mcpe\protocol\DisconnectPacket;
@@ -86,7 +87,7 @@ class SwitchDownstreamHandler extends AbstractDownstreamPacketHandler
 
 		if (!$session->isConnected()) {
 			$player->getDownstream()?->disconnect();
-			$player->disconnect('Transfer disconnected');
+			$player->disconnect(TranslationFactory::translate('player.transfer.disconnected'));
 			return true;
 		}
 

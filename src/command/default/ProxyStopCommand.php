@@ -27,6 +27,7 @@ namespace aquarelay\command\default;
 use aquarelay\command\builder\CommandBuilder;
 use aquarelay\command\Command;
 use aquarelay\command\sender\CommandSender;
+use aquarelay\lang\TranslationFactory;
 use aquarelay\permission\DefaultPermissionNames;
 use aquarelay\ProxyServer;
 
@@ -36,7 +37,7 @@ class ProxyStopCommand extends Command
 	{
 		return new CommandBuilder(
 			"proxystop",
-			"Stops the proxy server",
+			TranslationFactory::translate('command.stop.description'),
 			"/proxystop",
 			["ps"],
 			DefaultPermissionNames::COMMAND_PROXYSTOP

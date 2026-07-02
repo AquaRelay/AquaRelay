@@ -113,7 +113,7 @@ class UpstreamResourcePackHandler extends AbstractUpstreamPacketHandler
 
 		$response = $packManager->createPackChunkPacket($packet->packId, $packet->chunkIndex);
 		if ($response === null) {
-			$this->session->disconnect('Unknown resource pack.');
+			$this->session->disconnect(TranslationFactory::translate('resource_pack.unknown'));
 			return false;
 		}
 
@@ -142,7 +142,7 @@ class UpstreamResourcePackHandler extends AbstractUpstreamPacketHandler
 
 		$infoPacket = $packManager->createPackInfoPacket($nextId);
 		if ($infoPacket === null) {
-			$this->session->disconnect('Unknown resource pack.');
+			$this->session->disconnect(TranslationFactory::translate('resource_pack.unknown'));
 			return;
 		}
 

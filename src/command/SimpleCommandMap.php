@@ -29,6 +29,7 @@ use aquarelay\command\default\ProxyPluginsCommand;
 use aquarelay\command\default\ProxyStopCommand;
 use aquarelay\command\default\ProxyTransferCommand;
 use aquarelay\command\sender\CommandSender;
+use aquarelay\lang\TranslationFactory;
 use function array_shift;
 use function explode;
 use function str_starts_with;
@@ -88,14 +89,14 @@ class SimpleCommandMap implements CommandMap {
 		if (empty($label)) return false;
 
 		if (!isset($this->commands[$label])) {
-			$sender->sendMessage("§cUnknown command: $label. Use /help for a list of available commands.");
+			$sender->sendMessage(TranslationFactory::translate('command.unknown', [$label]));
 			return false;
 		}
 
 		$command = $this->commands[$label];
 
 		if (!$command->testPermission($sender)) {
-			$sender->sendMessage("§cYou don't have permission to use this command.");
+			$sender->sendMessage(TranslationFactory::translate('command.no_permission'));
 			return false;
 		}
 

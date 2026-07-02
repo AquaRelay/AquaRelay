@@ -27,6 +27,7 @@ namespace aquarelay\command\default;
 use aquarelay\command\builder\CommandBuilder;
 use aquarelay\command\Command;
 use aquarelay\command\sender\CommandSender;
+use aquarelay\lang\TranslationFactory;
 use aquarelay\permission\DefaultPermissionNames;
 use aquarelay\player\Player;
 use aquarelay\ProxyServer;
@@ -37,7 +38,7 @@ class ProxyTransferCommand extends Command
 	{
 		return new CommandBuilder(
 			"transfer",
-			"Transfer player to backend server",
+			TranslationFactory::translate('command.transfer.description'),
 			"/transfer <server> [player]",
 			["server"],
 			[DefaultPermissionNames::COMMAND_TRANSFER_SELF, DefaultPermissionNames::COMMAND_TRANSFER_OTHER]
@@ -47,7 +48,7 @@ class ProxyTransferCommand extends Command
 	public function execute(CommandSender $sender, string $label, array $args) : bool
 	{
 		if (!isset($args[0])) {
-			$sender->sendMessage("§cUsage: " . $this->getBuilder()->getUsage());
+			$sender->sendMessage(TranslationFactory::translate('command.usage', [$this->getBuilder()->getUsage()]));
 			return false;
 		}
 
@@ -56,14 +57,14 @@ class ProxyTransferCommand extends Command
 		$backend = $proxy->getServerManager()->get($serverName);
 
 		if ($backend === null) {
-			$sender->sendMessage("§cServer not found: $serverName");
+			$sender->sendMessage(TranslationFactory::translate('command.transfer.server_not_found', [$serverName]));
 			return false;
 		}
 
 		if ($sender instanceof Player) {
 			if (!isset($args[1])) {
 				if (!$sender->hasPermission(DefaultPermissionNames::COMMAND_TRANSFER_SELF)) {
-					$sender->sendMessage("§cYou don't have permission to transfer yourself.");
+					$sender->sendMessage(TranslationFactory::translate('command.transfer.no_permission_self'));
 					return false;
 				}
 
@@ -72,7 +73,7 @@ class ProxyTransferCommand extends Command
 			}
 
 			if (!$sender->hasPermission(DefaultPermissionNames::COMMAND_TRANSFER_OTHER)) {
-				$sender->sendMessage("§cYou don't have permission to transfer other players.");
+				$sender->sendMessage(TranslationFactory::translate('command.transfer.no_permission_other'));
 				return false;
 			}
 
@@ -80,17 +81,17 @@ class ProxyTransferCommand extends Command
 			$target = $proxy->getPlayerByName($targetName);
 
 			if ($target === null) {
-				$sender->sendMessage("§cPlayer not found: $targetName");
+				$sender->sendMessage(TranslationFactory::translate('command.transfer.player_not_found', [$targetName]));
 				return false;
 			}
 
 			$target->transferToBackend($backend);
-			$sender->sendMessage("§aTransferred §2$targetName §ato §2$serverName");
+			$sender->sendMessage(TranslationFactory::translate('command.transfer.success', [$targetName, $serverName]));
 			return true;
 		}
 
 		if (!isset($args[1])) {
-			$sender->sendMessage("§cUsage: " . $this->getBuilder()->getUsage());
+			$sender->sendMessage(TranslationFactory::translate('command.usage', [$this->getBuilder()->getUsage()]));
 			return false;
 		}
 
@@ -98,12 +99,12 @@ class ProxyTransferCommand extends Command
 		$target = $proxy->getPlayerByName($targetName);
 
 		if ($target === null) {
-			$sender->sendMessage("§cPlayer not found: $targetName");
+			$sender->sendMessage(TranslationFactory::translate('command.transfer.player_not_found', [$targetName]));
 			return false;
 		}
 
 		$target->transferToBackend($backend);
-		$sender->sendMessage("§aTransferred §2$targetName §ato §2$serverName");
+		$sender->sendMessage(TranslationFactory::translate('command.transfer.success', [$targetName, $serverName]));
 		return true;
 	}
 }

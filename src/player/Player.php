@@ -260,9 +260,9 @@ class Player implements CommandSender, PermissionHolder
 		$this->getNetworkSession()->onCloseAllForms();
 	}
 
-	public function disconnect(string $reason = 'Disconnected from proxy') : void
+	public function disconnect(?string $reason = null) : void
 	{
-		$this->upstreamSession->disconnect($reason);
+		$this->upstreamSession->disconnect($reason ?? TranslationFactory::translate('player.disconnect.default'));
 	}
 
 	public function transferToBackend(BackendServer $server) : void

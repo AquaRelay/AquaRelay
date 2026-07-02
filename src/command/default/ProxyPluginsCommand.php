@@ -27,6 +27,7 @@ namespace aquarelay\command\default;
 use aquarelay\command\builder\CommandBuilder;
 use aquarelay\command\Command;
 use aquarelay\command\sender\CommandSender;
+use aquarelay\lang\TranslationFactory;
 use aquarelay\permission\DefaultPermissionNames;
 use function array_keys;
 use function count;
@@ -38,7 +39,7 @@ class ProxyPluginsCommand extends Command
 	{
 		return new CommandBuilder(
 			"proxyplugins",
-			"Shows the plugins of the proxy",
+			TranslationFactory::translate('command.plugins.description'),
 			"/proxyplugins",
 			["ppl"],
 			DefaultPermissionNames::COMMAND_PROXYPLUGINS
@@ -53,7 +54,7 @@ class ProxyPluginsCommand extends Command
 		$pluginNames = array_keys($plugins);
 		$pluginsStr = $count > 0 ? implode(", ", $pluginNames) : "";
 
-		$sender->sendMessage("§aProxy plugins §2($count): §a$pluginsStr");
+		$sender->sendMessage(TranslationFactory::translate('command.plugins.list', [$count, $pluginsStr]));
 		return true;
 	}
 }
