@@ -26,6 +26,7 @@ namespace aquarelay\command;
 
 use aquarelay\command\builder\CommandBuilder;
 use aquarelay\command\sender\CommandSender;
+use function is_array;
 
 abstract class Command {
 

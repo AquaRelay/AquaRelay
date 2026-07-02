@@ -31,8 +31,8 @@ use aquarelay\lang\TranslationFactory;
 use aquarelay\network\handler\downstream\AbstractDownstreamPacketHandler;
 use aquarelay\network\handler\downstream\DownstreamResourcePackHandler;
 use aquarelay\network\handler\downstream\SwitchDownstreamResourcePackHandler;
-use aquarelay\network\protocol\RewriteData;
 use aquarelay\network\NetworkSession;
+use aquarelay\network\protocol\RewriteData;
 use aquarelay\network\raklib\client\BackendRakClient;
 use aquarelay\permission\PermissionHolder;
 use aquarelay\ProxyServer;
@@ -48,7 +48,6 @@ use pocketmine\network\mcpe\protocol\TransferPacket;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
 use function get_class;
-use function json_encode;
 
 class Player implements CommandSender, PermissionHolder
 {

@@ -53,6 +53,7 @@ use function strlen;
 use function substr;
 use function sys_get_temp_dir;
 use function time;
+use const DIRECTORY_SEPARATOR;
 use const JSON_THROW_ON_ERROR;
 use const OPENSSL_ALGO_SHA384;
 use const OPENSSL_KEYTYPE_EC;

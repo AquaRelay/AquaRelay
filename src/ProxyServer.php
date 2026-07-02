@@ -50,7 +50,6 @@ use aquarelay\utils\ConsoleReaderThread;
 use aquarelay\utils\MainLogger;
 use aquarelay\utils\SignalHandler;
 use aquarelay\utils\Utils;
-use pmmp\encoding\ByteBufferReader;
 use pmmp\thread\Thread;
 use pmmp\thread\ThreadSafeArray;
 use pocketmine\network\mcpe\protocol\PacketPool;
@@ -58,18 +57,19 @@ use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\snooze\SleeperHandler;
 use raklib\generic\DisconnectReason;
 use function count;
+use function error_get_last;
 use function file_exists;
 use function file_get_contents;
 use function file_put_contents;
-use function is_dir;
-use function error_get_last;
 use function fwrite;
+use function is_dir;
 use function microtime;
 use function mkdir;
 use function ord;
 use function register_shutdown_function;
 use function round;
 use function set_exception_handler;
+use function strtolower;
 use function substr;
 use const DIRECTORY_SEPARATOR;
 use const E_COMPILE_ERROR;
@@ -82,7 +82,7 @@ use const STDERR;
 class ProxyServer
 {
 	public const NAME = 'AquaRelay';
-	public const VERSION = '1.0.1'; // Semver
+	public const VERSION = '1.0.2'; // Semver
 	public const IS_DEVELOPMENT = false;
 	public RakLibInterface $interface;
 	private MainLogger $logger;
@@ -371,7 +371,6 @@ class ProxyServer
 
 	/**
 	 * Returns the tick sleeper handler.
-	 * @return SleeperHandler
 	 */
 	public function getTickSleeper() : SleeperHandler
 	{
